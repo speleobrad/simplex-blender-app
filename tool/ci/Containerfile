@@ -1,0 +1,54 @@
+# Local stand-in for the GitHub Actions runner used by .github/workflows/ci.yml
+# (ubuntu-latest, Flutter pinned by .flutter-version, Java 17, Android SDK).
+#
+# Build:  podman build -t simplex-blender-ci -f tool/ci/Containerfile tool/ci
+# Run:    podman run --rm -v "$PWD:/work:Z" -w /work simplex-blender-ci <command>
+FROM docker.io/library/ubuntu:24.04
+
+ARG FLUTTER_VERSION=3.47.9
+ARG CMDLINE_TOOLS_BUILD=11076708
+ARG ANDROID_PLATFORM=36
+ARG ANDROID_BUILD_TOOLS=36.0.0
+ARG ANDROID_NDK=28.2.13676358
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    CI=true \
+    FLUTTER_HOME=/opt/flutter \
+    ANDROID_HOME=/opt/android-sdk \
+    ANDROID_SDK_ROOT=/opt/android-sdk \
+    PUB_CACHE=/opt/pub-cache \
+    PATH=/opt/flutter/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:$PATH
+
+# Linux desktop toolchain from the build-linux job, plus build-essential so the
+# C++ standard library development link (-lstdc++) is present. JDK 17 matches
+# actions/setup-java in the Android job.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates curl git unzip xz-utils zip \
+      build-essential clang cmake ninja-build pkg-config \
+      libgtk-3-dev liblzma-dev openjdk-17-jdk-headless \
+ && rm -rf /var/lib/apt/lists/*
+
+# Flutter SDK at the version pinned in .flutter-version.
+RUN curl -fsSL "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
+      | tar -xJ -C /opt
+
+# Android SDK: command-line tools, then the platform, build-tools, and NDK that
+# Flutter 3.47 defaults to (compileSdk 36, NDK 28.2.13676358).
+RUN curl -fsSL -o /tmp/cmdline-tools.zip "https://dl.google.com/android/repository/commandlinetools-linux-${CMDLINE_TOOLS_BUILD}_latest.zip" \
+ && mkdir -p "${ANDROID_HOME}/cmdline-tools" \
+ && unzip -q /tmp/cmdline-tools.zip -d "${ANDROID_HOME}/cmdline-tools" \
+ && mv "${ANDROID_HOME}/cmdline-tools/cmdline-tools" "${ANDROID_HOME}/cmdline-tools/latest" \
+ && rm /tmp/cmdline-tools.zip \
+ && yes | sdkmanager --licenses >/dev/null \
+ && sdkmanager "platform-tools" "platforms;android-${ANDROID_PLATFORM}" \
+      "build-tools;${ANDROID_BUILD_TOOLS}" "ndk;${ANDROID_NDK}"
+
+# Pre-fetch engine artifacts so container runs do not download them each time.
+# Flutter's tooling runs git on the SDK checkout. The tarball is owned by a
+# different uid than the container's root, so mark it safe explicitly.
+RUN git config --global --add safe.directory /opt/flutter \
+ && flutter --version \
+ && flutter precache --linux --android
+
+WORKDIR /work
