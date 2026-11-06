@@ -2054,6 +2054,16 @@ void main() {
     expect(_midpointDeviationBar(step).abs(), greaterThan(3));
   });
 
+  test('a profiled booster transfer carries the solver rate on every transfer sample', () {
+    final step = _stepThermal(
+      _profiledBoosterSimulation(sourceStartMoles: 100),
+      0,
+    );
+    final rates = _transferSamples(step).map((s) => s.rateBarPerMin).toList();
+    expect(rates, isNotEmpty);
+    expect(rates.every((r) => r != null && r.isFinite && r > 0), isTrue);
+  });
+
   test('a closed-form decant step keeps dP / rate', () {
     final simulation = _thermal(
       steps: [
@@ -2085,7 +2095,7 @@ void main() {
     );
     final step = _stepThermal(simulation, 0);
     expect(step.rateSource, equals('decant-rate'));
-    expect(step.durationMinutes, closeTo(100 / step.rateBarPerMin!, 1e-9));
+    expect(step.samples.every((s) => s.rateBarPerMin == null), isTrue);
   });
 
   test(
