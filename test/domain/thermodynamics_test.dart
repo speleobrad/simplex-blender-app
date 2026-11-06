@@ -164,8 +164,9 @@ void main() {
       receiverTemperatureC: 20,
       useVdw: false,
     );
-    expect(result.molesPerMin, greaterThan(0));
-    expect(result.fillRateBarPerMin, isNonNegative);
+    final zInlet = calcZ(1.01325, 21, 0, 20, false);
+    final expectedMoles = 1.01325 * 100 / (zInlet * gasConstant * 293.15);
+    expect(result.molesPerMin, closeTo(expectedMoles, 1e-12));
   });
 
   test('cooling reaches an absolute target using Newton cooling', () {
