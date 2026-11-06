@@ -837,18 +837,36 @@ void main() {
         addRow('add', 'he-bank', added: 100, target: 150),
       ]);
 
-      final transfer = protocol.protocolSteps.firstWhere(
-        (step) => step.sourceBankId == 'he-bank',
-      );
-      expect(transfer.sourceVolumeL, heBank.volumeL);
-      expect(
-        transfer.sourceStartMoles,
-        closeTo(
-          calcMolarDensity(heBank.pressureBar, 0, 100, 20, false) *
-              heBank.volumeL,
-          1e-9,
-        ),
-      );
+      final bankSteps = protocol.protocolSteps
+          .where(
+            (step) =>
+                step.sourceBankId != null &&
+                !step.sourceBankId!.startsWith('compressor'),
+          )
+          .toList();
+      expect(bankSteps, isNotEmpty);
+
+      final initialMoles = protocol.sourceBanks
+          .firstWhere((bank) => bank.id == heBank.id)
+          .initial
+          .moles;
+      expect(initialMoles, isNotNull);
+
+      double? expectedStartMoles;
+      for (final step in bankSteps) {
+        expect(step.sourceVolumeL, heBank.volumeL);
+        expect(step.sourceStartMoles, isNotNull);
+        if (expectedStartMoles == null) {
+          // First transfer from this bank starts at the builder's recorded
+          // pre-transfer inventory.
+          expect(step.sourceStartMoles, closeTo(initialMoles!, 1e-9));
+        } else {
+          // Later stages start where the previous stage left the bank.
+          expect(step.sourceStartMoles, closeTo(expectedStartMoles, 1e-9));
+        }
+        expectedStartMoles =
+            step.sourceStartMoles! - (step.sourceConsumedMoles ?? 0);
+      }
     },
   );
 
