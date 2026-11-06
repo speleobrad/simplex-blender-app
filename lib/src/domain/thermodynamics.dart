@@ -762,7 +762,17 @@ BoosterFillRate calculateBoosterFillRate({
   );
 }
 
-double calculateCompressorFillRate({
+class CompressorFillRate {
+  const CompressorFillRate({
+    required this.fillRateBarPerMin,
+    required this.molesPerMin,
+  });
+
+  final double fillRateBarPerMin;
+  final double molesPerMin;
+}
+
+CompressorFillRate calculateCompressorFillRate({
   required double inletFlowLPerMin,
   required double receiverPressureBar,
   required double receiverOxygenPercent,
@@ -792,12 +802,13 @@ double calculateCompressorFillRate({
       atmosphericPressureBar *
       inletFlowLPerMin /
       (zInlet * gasConstant * inletTemperatureK);
+  final fillRateBarPerMin =
+      molesPerMin * zReceiver * gasConstant * receiverTemperatureK / receiverVolumeL;
 
-  return molesPerMin *
-      zReceiver *
-      gasConstant *
-      receiverTemperatureK /
-      receiverVolumeL;
+  return CompressorFillRate(
+    fillRateBarPerMin: fillRateBarPerMin,
+    molesPerMin: molesPerMin,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1240,7 +1251,7 @@ TransferRate _rateForProtocolStep({
         ambientTemperatureC: thermal.ambientTemperatureC,
         receiverTemperatureC: currentTemperatureC,
         useVdw: useVdw,
-      ),
+      ).fillRateBarPerMin,
       pressureIncreaseBar: pressureIncreaseBar,
     );
   }

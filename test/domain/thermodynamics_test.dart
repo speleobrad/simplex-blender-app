@@ -113,7 +113,7 @@ void main() {
         useVdw: false,
       );
 
-      expect(rate, closeTo(8.447, 0.01));
+      expect(rate.fillRateBarPerMin, closeTo(8.447, 0.01));
     },
   );
 
@@ -149,9 +149,24 @@ void main() {
           temperatureK /
           receiverVolumeL;
 
-      expect(rate, closeTo(expected, 1e-12));
+      expect(rate.fillRateBarPerMin, closeTo(expected, 1e-12));
     },
   );
+
+  test('compressor fill rate reports moles per minute', () {
+    final result = calculateCompressorFillRate(
+      inletFlowLPerMin: 100,
+      receiverPressureBar: 1.01325,
+      receiverOxygenPercent: 21,
+      receiverHeliumPercent: 0,
+      receiverVolumeL: 12,
+      ambientTemperatureC: 20,
+      receiverTemperatureC: 20,
+      useVdw: false,
+    );
+    expect(result.molesPerMin, greaterThan(0));
+    expect(result.fillRateBarPerMin, isNonNegative);
+  });
 
   test('cooling reaches an absolute target using Newton cooling', () {
     final minutes = calculateCoolingTime(
