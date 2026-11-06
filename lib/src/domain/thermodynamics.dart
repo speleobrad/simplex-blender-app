@@ -1558,6 +1558,7 @@ List<ThermalSample> _buildThermalStepSamples({
       pressureReferenceTemperatureC: temperatureAtTransferEndC,
     );
   }
+  final transferEndSamplePressureBar = samples.last.pressureBar;
 
   void appendWaitSample(double elapsedMinutes) {
     final double temperatureC;
@@ -1576,7 +1577,7 @@ List<ThermalSample> _buildThermalStepSamples({
     final pressureBar = elapsedMinutes >= waitMinutes
         ? pressureAfterWaitBar
         : calculatePressureAtTemperature(
-            pressureBar: samples.last.pressureBar,
+            pressureBar: transferEndSamplePressureBar,
             oxygenPercent: receiverMix.oxygenPercent,
             heliumPercent: receiverMix.heliumPercent,
             fromTemperatureC: temperatureAtTransferEndC,
