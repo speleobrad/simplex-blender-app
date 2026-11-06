@@ -11,7 +11,7 @@ import 'package:simplex_blender/src/domain/units.dart';
 ///
 /// [onEquipmentChanged] runs after a preset selection is saved (JS
 /// `selectInventoryEquipmentPreset` recalculates after saving).
-class EquipmentSummary extends StatelessWidget {
+class EquipmentSummary extends StatefulWidget {
   const EquipmentSummary({
     super.key,
     required this.app,
@@ -20,6 +20,16 @@ class EquipmentSummary extends StatelessWidget {
 
   final AppController app;
   final VoidCallback? onEquipmentChanged;
+
+  @override
+  State<EquipmentSummary> createState() => _EquipmentSummaryState();
+}
+
+class _EquipmentSummaryState extends State<EquipmentSummary> {
+  /// Errors from the last selection that was not saved; empty once one is saved.
+  List<String> _errors = const <String>[];
+
+  AppController get app => widget.app;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +71,14 @@ class EquipmentSummary extends StatelessWidget {
               names: boosterNames,
               onChanged: (name) => _select(EquipmentCategory.booster, name),
             ),
+            for (final error in _errors)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  error,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
             const SizedBox(height: 8),
             _DetailRow(
               label: 'Compressor details',
@@ -101,8 +119,14 @@ class EquipmentSummary extends StatelessWidget {
     if (next == null) {
       return;
     }
-    app.applySettings(next);
-    onEquipmentChanged?.call();
+    final errors = app.applySettings(next);
+    setState(() {
+      _errors = errors;
+    });
+    if (errors.isNotEmpty) {
+      return;
+    }
+    widget.onEquipmentChanged?.call();
   }
 }
 

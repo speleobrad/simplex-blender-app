@@ -91,6 +91,8 @@ ProtocolStep protocolStepOf(CompareStep step) => ProtocolStep(
   costOperationId: step.costOperationId,
   sourceConsumedMoles: step.sourceConsumedMoles,
   recipeAction: step.recipeAction,
+  recipeGas: step.recipeGas,
+  recipeLabel: step.recipeLabel,
   sourceBankId: step.sourceBankId,
   oxygenCompressionRatio: step.oxygenCompressionRatio,
   sourceVolumeL: step.sourceVolumeL,

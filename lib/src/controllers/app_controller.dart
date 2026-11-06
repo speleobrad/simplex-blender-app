@@ -47,7 +47,9 @@ class AppController extends ChangeNotifier {
   AppController({
     required KeyValueStorage storage,
     required Analytics analytics,
+    DateTime Function() now = DateTime.now,
   }) : _storage = storage,
+       _now = now,
        _analytics = GatedAnalytics(
          analytics,
          enabled: loadAnalyticsEnabled(storage),
@@ -74,6 +76,8 @@ class AppController extends ChangeNotifier {
   }
 
   final KeyValueStorage _storage;
+  final DateTime Function() _now;
+  final Set<String> _issuedBankIds = <String>{};
   final GatedAnalytics _analytics;
 
   /// Sink that blend, what-if, and navigation controllers must report through.
@@ -161,7 +165,7 @@ class AppController extends ChangeNotifier {
   /// Appends a default Inventory bank (JS `addBank`).
   void addBank() {
     final bank = Bank(
-      id: 'bank-${DateTime.now().millisecondsSinceEpoch}',
+      id: _newBankId(),
       name: 'New Mix',
       volumeL: 50,
       pressureBar: 200,
@@ -172,6 +176,21 @@ class AppController extends ChangeNotifier {
     );
     _banks = <Bank>[..._banks, bank];
     _persistBanks();
+  }
+
+  /// Returns a bank id this controller has never issued and no current bank
+  /// uses. Ids of removed banks stay reserved, so a later add in the same
+  /// millisecond cannot reattach a what-if row that still names the old bank.
+  String _newBankId() {
+    final base = 'bank-${_now().millisecondsSinceEpoch}';
+    var candidate = base;
+    var suffix = 1;
+    while (_issuedBankIds.contains(candidate) || _indexOfBank(candidate) >= 0) {
+      candidate = '$base-$suffix';
+      suffix += 1;
+    }
+    _issuedBankIds.add(candidate);
+    return candidate;
   }
 
   /// Replaces the bank with the same id as [updated] (JS `commitBankUpdate`).

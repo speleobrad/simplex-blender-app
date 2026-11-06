@@ -326,9 +326,8 @@ class WhatIfController extends ChangeNotifier {
       return;
     }
     final rows = List<CompareRow>.of(_scenario.rows);
-    final moved = rows[index];
-    rows[index] = rows[destination];
-    rows[destination] = moved;
+    final moved = rows.removeAt(index);
+    rows.insert(destination, moved);
     updateRows(rows);
   }
 
