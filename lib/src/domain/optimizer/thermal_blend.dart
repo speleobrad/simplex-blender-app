@@ -255,7 +255,7 @@ _ThermalCandidate _evaluateThermalCandidate(
       simulation: null,
     );
   }
-  final scheduled = scheduleSafeThermalProtocol(
+  final scheduled = scheduleCandidateProtocol(
     protocolSteps: _protocolStepsOf(result['protocolSteps']),
     cylinder: candidateInput['cylinder']! as Map<String, Object?>,
     physics: ctx.physics,
@@ -360,7 +360,7 @@ Map<String, Object?>? finalizeComposedPlan(
       'targetPressureBar': targetPressureBar,
     },
   };
-  final scheduled = scheduleSafeThermalProtocol(
+  final scheduled = scheduleCandidateProtocol(
     protocolSteps: protocolSteps,
     cylinder: candidateInput['cylinder']! as Map<String, Object?>,
     physics: physics,
@@ -412,7 +412,7 @@ Map<String, Object?> _thermalizedMaximumResult(
     };
   }
   final candidateInput = candidate.candidateInput;
-  final scheduled = scheduleSafeThermalProtocol(
+  final scheduled = scheduleCandidateProtocol(
     protocolSteps: _protocolStepsOf(maximum['protocolSteps']),
     cylinder: candidateInput['cylinder']! as Map<String, Object?>,
     physics: ctx.physics,
