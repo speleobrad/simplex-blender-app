@@ -1303,6 +1303,96 @@ TransferRate _rateForProtocolStep({
   );
 }
 
+/// Duration, rate, and temperature history of one transfer. Profiled sources
+/// take them from [solveTransferProfile]; closed-form steps keep `dP / rate`.
+class _TransferTimeline {
+  const _TransferTimeline({
+    required this.rateBarPerMin,
+    required this.durationMinutes,
+    required this.temperatureSamples,
+    this.profileSamples,
+  });
+
+  final double? rateBarPerMin;
+  final double durationMinutes;
+  final List<TemperatureSample> temperatureSamples;
+  final List<TransferProfileSample>? profileSamples;
+}
+
+_TransferTimeline _transferTimeline({
+  required ProtocolStep step,
+  required TransferRate transfer,
+  required double currentPressureBar,
+  required double currentTemperatureC,
+  required double transferEndPressureBar,
+  required GasMixPercent currentMix,
+  required GasMixPercent receiverMix,
+  required CylinderInput cylinder,
+  required PhysicsInput physics,
+  required ThermalInput thermal,
+  required BoosterSettings? booster,
+  required double inletTemperatureC,
+}) {
+  final profile = solveTransferProfile(
+    TransferProfileInput(
+      step: step,
+      transfer: transfer,
+      currentPressureBar: currentPressureBar,
+      currentTemperatureC: currentTemperatureC,
+      transferEndPressureBar: transferEndPressureBar,
+      currentMix: currentMix,
+      receiverMix: receiverMix,
+      cylinder: cylinder,
+      physics: physics,
+      thermal: thermal,
+      booster: booster,
+      inletTemperatureC: inletTemperatureC,
+    ),
+  );
+  if (profile != null) {
+    return _TransferTimeline(
+      rateBarPerMin: profile.rateBarPerMin,
+      durationMinutes: profile.durationMinutes,
+      temperatureSamples: profile.temperatureSamples,
+      profileSamples: profile.profileSamples,
+    );
+  }
+  final rate = transfer.rateBarPerMin;
+  final durationMinutes = rate != null && rate > 0
+      ? transfer.pressureIncreaseBar / rate
+      : 0.0;
+  final temperatureSamples = _hasTransferProfile(transfer.rateSource)
+      ? _estimateTransferTemperatureSamples(
+          startTemperatureC: currentTemperatureC,
+          startPressureBar: currentPressureBar,
+          addedPressureBar:
+              transfer.pressureChangeBar ?? transfer.pressureIncreaseBar,
+          fillTimeMinutes: durationMinutes,
+          volumeL: cylinder.volumeL,
+          heliumFraction:
+              (step.sourceHeliumPercent ?? receiverMix.heliumPercent) / 100,
+          oxygenFraction:
+              (step.sourceOxygenPercent ?? receiverMix.oxygenPercent) / 100,
+          tankMaterial: thermal.tankMaterial,
+          coolingMedium: thermal.coolingMedium,
+          waterSubmersionPercent: thermal.waterSubmersionPercent,
+          tankMassKg: thermal.tankMassKg,
+          ambientTemperatureC: thermal.ambientTemperatureC,
+          inletTemperatureC: inletTemperatureC,
+        )
+      : [
+          TemperatureSample(
+            elapsedMinutes: 0,
+            temperatureC: currentTemperatureC,
+          ),
+        ];
+  return _TransferTimeline(
+    rateBarPerMin: rate,
+    durationMinutes: durationMinutes,
+    temperatureSamples: temperatureSamples,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Thermal step sample profile.
 // ---------------------------------------------------------------------------
@@ -1312,6 +1402,7 @@ List<ThermalSample> _buildThermalStepSamples({
   required double currentTemperatureC,
   required TransferRate transfer,
   required List<TemperatureSample> transferTemperatureSamples,
+  List<TransferProfileSample>? transferProfileSamples,
   required double durationMinutes,
   required double transferEndPressureBar,
   required double pressureAtTransferEndAmbientBar,
@@ -1374,7 +1465,38 @@ List<ThermalSample> _buildThermalStepSamples({
   );
   final hotTransferEndPressure = pressureAtTransferEndHotBar;
   final ambientTransferEndPressure = pressureAtTransferEndAmbientBar;
-  if (_hasTransferProfile(transfer.rateSource)) {
+  if (transferProfileSamples != null) {
+    for (final point in transferProfileSamples) {
+      final ambientPressureBar = calculatePressureAtTemperature(
+        pressureBar: point.pressureBar,
+        oxygenPercent: point.oxygenPercent,
+        heliumPercent: point.heliumPercent,
+        fromTemperatureC: point.temperatureC,
+        toTemperatureC: thermal.ambientTemperatureC,
+        volumeL: cylinder.volumeL,
+        useVdw: useVdw,
+      );
+      final projectedPressureBar = calculatePressureAtTemperature(
+        pressureBar: ambientPressureBar,
+        oxygenPercent: point.oxygenPercent,
+        heliumPercent: point.heliumPercent,
+        fromTemperatureC: thermal.ambientTemperatureC,
+        toTemperatureC: point.temperatureC,
+        volumeL: cylinder.volumeL,
+        useVdw: useVdw,
+      );
+      append(
+        point.elapsedMinutes,
+        point.temperatureC,
+        point.pressureBar,
+        projectedPressureBar: projectedPressureBar,
+        ambientPressureBar: ambientPressureBar,
+        oxygenPercent: point.oxygenPercent,
+        heliumPercent: point.heliumPercent,
+        pressureReferenceTemperatureC: point.temperatureC,
+      );
+    }
+  } else if (_hasTransferProfile(transfer.rateSource)) {
     final startMix = receiverStartMix ?? receiverMix;
     final startAmbientPressureBar = calculatePressureAtTemperature(
       pressureBar: currentPressureBar,
@@ -1449,7 +1571,7 @@ List<ThermalSample> _buildThermalStepSamples({
     final pressureBar = elapsedMinutes >= waitMinutes
         ? pressureAfterWaitBar
         : calculatePressureAtTemperature(
-            pressureBar: transferEndPressureBar,
+            pressureBar: samples.last.pressureBar,
             oxygenPercent: receiverMix.oxygenPercent,
             heliumPercent: receiverMix.heliumPercent,
             fromTemperatureC: temperatureAtTransferEndC,
@@ -1628,10 +1750,6 @@ ThermalProtocolResult simulateThermalProtocol({
       thermal: thermal,
       booster: boosterSettings,
     );
-    final rate = transfer.rateBarPerMin;
-    final durationMinutes = rate != null && rate > 0
-        ? transfer.pressureIncreaseBar / rate
-        : 0.0;
     final noTransfer =
         transfer.rateSource == 'none' && transfer.pressureIncreaseBar <= 0;
     final receiverMix = noTransfer ? currentMix : targetMix;
@@ -1641,31 +1759,22 @@ ThermalProtocolResult simulateThermalProtocol({
       thermal,
       boosterSettings,
     );
-    final transferTemperatureSamples = _hasTransferProfile(transfer.rateSource)
-        ? _estimateTransferTemperatureSamples(
-            startTemperatureC: currentTemperatureC,
-            startPressureBar: currentPressureBar,
-            addedPressureBar:
-                transfer.pressureChangeBar ?? transfer.pressureIncreaseBar,
-            fillTimeMinutes: durationMinutes,
-            volumeL: cylinder.volumeL,
-            heliumFraction:
-                (step.sourceHeliumPercent ?? receiverMix.heliumPercent) / 100,
-            oxygenFraction:
-                (step.sourceOxygenPercent ?? receiverMix.oxygenPercent) / 100,
-            tankMaterial: thermal.tankMaterial,
-            coolingMedium: thermal.coolingMedium,
-            waterSubmersionPercent: thermal.waterSubmersionPercent,
-            tankMassKg: thermal.tankMassKg,
-            ambientTemperatureC: thermal.ambientTemperatureC,
-            inletTemperatureC: inletTemperatureC,
-          )
-        : [
-            TemperatureSample(
-              elapsedMinutes: 0,
-              temperatureC: currentTemperatureC,
-            ),
-          ];
+    final timeline = _transferTimeline(
+      step: step,
+      transfer: transfer,
+      currentPressureBar: currentPressureBar,
+      currentTemperatureC: currentTemperatureC,
+      transferEndPressureBar: transferEndPressureBar,
+      currentMix: currentMix,
+      receiverMix: receiverMix,
+      cylinder: cylinder,
+      physics: physics,
+      thermal: thermal,
+      booster: booster,
+      inletTemperatureC: inletTemperatureC,
+    );
+    final durationMinutes = timeline.durationMinutes;
+    final transferTemperatureSamples = timeline.temperatureSamples;
     final temperatureAtTransferEndC =
         transferTemperatureSamples.last.temperatureC;
     final pressureAtTransferEndReferenceBar = noTransfer
@@ -1778,7 +1887,7 @@ ThermalProtocolResult simulateThermalProtocol({
       plannedStartTemperatureC: plannedStartTemperatureC,
       pressureStartBar: pressureStartBar,
       rateSource: transfer.rateSource,
-      rateBarPerMin: transfer.rateBarPerMin,
+      rateBarPerMin: timeline.rateBarPerMin,
       durationMinutes: durationMinutes,
       inletTemperatureC: inletTemperatureC,
       measurementIndex: measurementIndex,
@@ -1812,6 +1921,7 @@ ThermalProtocolResult simulateThermalProtocol({
         currentTemperatureC: currentTemperatureC,
         transfer: transfer,
         transferTemperatureSamples: transferTemperatureSamples,
+        transferProfileSamples: timeline.profileSamples,
         durationMinutes: durationMinutes,
         transferEndPressureBar: pressureAtTransferEndReferenceBar,
         pressureAtTransferEndAmbientBar: pressureAtTransferEndAmbientBar,
@@ -1932,6 +2042,8 @@ ThermalCompareResult simulateCompareProtocol({
     ];
     var temperatureAtTransferEndC = currentTemperatureC;
     var hasTransferProfile = false;
+    double? transferRateBarPerMin;
+    List<TransferProfileSample>? transferProfileSamples;
     var pressureAtTransferEndHotBar = transferEndPressureBar;
     final solveHotEndpoint =
         !isWait &&
@@ -1975,41 +2087,30 @@ ThermalCompareResult simulateCompareProtocol({
               thermal: thermal,
               booster: boosterSettings,
             );
-      final rate = transfer.rateBarPerMin;
-      durationMinutes = rate != null && rate > 0
-          ? transfer.pressureIncreaseBar / rate
-          : 0.0;
       inletTemperatureC = _inletTemperatureFor(
         transfer.rateSource,
         thermal,
         boosterSettings,
       );
       hasTransferProfile = _hasTransferProfile(transfer.rateSource);
-      transferTemperatureSamples = hasTransferProfile
-          ? _estimateTransferTemperatureSamples(
-              startTemperatureC: currentTemperatureC,
-              startPressureBar: currentPressureBar,
-              addedPressureBar:
-                  transfer.pressureChangeBar ?? transfer.pressureIncreaseBar,
-              fillTimeMinutes: durationMinutes,
-              volumeL: cylinder.volumeL,
-              heliumFraction:
-                  (step.sourceHeliumPercent ?? receiverMix.heliumPercent) / 100,
-              oxygenFraction:
-                  (step.sourceOxygenPercent ?? receiverMix.oxygenPercent) / 100,
-              tankMaterial: thermal.tankMaterial,
-              coolingMedium: thermal.coolingMedium,
-              waterSubmersionPercent: thermal.waterSubmersionPercent,
-              tankMassKg: thermal.tankMassKg,
-              ambientTemperatureC: thermal.ambientTemperatureC,
-              inletTemperatureC: inletTemperatureC,
-            )
-          : [
-              TemperatureSample(
-                elapsedMinutes: 0,
-                temperatureC: currentTemperatureC,
-              ),
-            ];
+      final timeline = _transferTimeline(
+        step: transferStep,
+        transfer: transfer,
+        currentPressureBar: currentPressureBar,
+        currentTemperatureC: currentTemperatureC,
+        transferEndPressureBar: transferEndPressureBar,
+        currentMix: currentMix,
+        receiverMix: receiverMix,
+        cylinder: cylinder,
+        physics: physics,
+        thermal: thermal,
+        booster: booster,
+        inletTemperatureC: inletTemperatureC,
+      );
+      durationMinutes = timeline.durationMinutes;
+      transferRateBarPerMin = timeline.rateBarPerMin;
+      transferProfileSamples = timeline.profileSamples;
+      transferTemperatureSamples = timeline.temperatureSamples;
       temperatureAtTransferEndC = transferTemperatureSamples.last.temperatureC;
       pressureAtTransferEndHotBar = hasTransferProfile
           ? calculatePressureAtTemperature(
@@ -2114,7 +2215,7 @@ ThermalCompareResult simulateCompareProtocol({
     );
     final thermalStep = ThermalStep(
       rateSource: transfer.rateSource,
-      rateBarPerMin: transfer.rateBarPerMin,
+      rateBarPerMin: transferRateBarPerMin,
       durationMinutes: durationMinutes,
       inletTemperatureC: inletTemperatureC,
       pressureStartBar: pressureStartBar,
@@ -2134,6 +2235,7 @@ ThermalCompareResult simulateCompareProtocol({
         transfer: transfer,
         transferTemperatureSamples: transferTemperatureSamples,
         durationMinutes: durationMinutes,
+        transferProfileSamples: transferProfileSamples,
         transferEndPressureBar: transferEndPressureBar,
         pressureAtTransferEndAmbientBar: pressureAtTransferEndAmbientBar,
         pressureAtTransferEndHotBar: pressureAtTransferEndHotBar,
