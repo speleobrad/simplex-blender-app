@@ -22,11 +22,13 @@ class ThermalInputSample {
     this.elapsedMinutes,
     this.pressureBar,
     this.temperatureC,
+    this.rateBarPerMin,
   });
 
   final double? elapsedMinutes;
   final double? pressureBar;
   final double? temperatureC;
+  final double? rateBarPerMin;
 }
 
 /// The `thermal` object of a protocol step.
@@ -156,6 +158,7 @@ class ThermalSeriesSample {
     required this.temperatureC,
     this.step,
     this.title,
+    this.rateBarPerMin,
   });
 
   final int? step;
@@ -163,6 +166,7 @@ class ThermalSeriesSample {
   final double elapsedMinutes;
   final double pressureBar;
   final double temperatureC;
+  final double? rateBarPerMin;
 }
 
 class ThermalSeriesBand {
@@ -520,6 +524,7 @@ ThermalSeries buildThermalSeries(
           elapsedMinutes: stepStartMinutes + sampleElapsed,
           pressureBar: samplePressure,
           temperatureC: sampleTemperature,
+          rateBarPerMin: _finiteOrNull(sample.rateBarPerMin),
         ),
       );
     }
@@ -589,6 +594,7 @@ ThermalSeries buildThermalSeries(
     previousTemperatureC = settledTemperatureC;
   }
 
+  ThermalSeriesPoint? ambientSettledPoint;
   final ThermalSeriesSample? terminalStart;
   if (points.isNotEmpty) {
     terminalStart = samples.last;
@@ -627,18 +633,26 @@ ThermalSeries buildThermalSeries(
       pressureBar: terminalPressure,
       temperatureC: terminalTemperature,
     );
-    if (points.isEmpty) {
-      samples.add(terminalStart);
+    final repeatsLastSample =
+        points.isNotEmpty &&
+        (samples.last.elapsedMinutes - terminalElapsedMinutes).abs() < 1e-6 &&
+        (samples.last.pressureBar - terminalPressure).abs() < 1e-6 &&
+        (samples.last.temperatureC - terminalTemperature).abs() < 1e-6;
+    ambientSettledPoint = terminalPoint;
+    if (!repeatsLastSample) {
+      if (points.isEmpty) {
+        samples.add(terminalStart);
+      }
+      points.add(terminalPoint);
+      samples.add(terminalSample);
+      lineSegments.add(
+        _SegmentDraft(
+          style: ThermalSegmentStyle.estimated,
+          transferEndMinute: null,
+          samples: [terminalStart, terminalSample],
+        ),
+      );
     }
-    points.add(terminalPoint);
-    samples.add(terminalSample);
-    lineSegments.add(
-      _SegmentDraft(
-        style: ThermalSegmentStyle.estimated,
-        transferEndMinute: null,
-        samples: [terminalStart, terminalSample],
-      ),
-    );
 
     final inWaterPressure = _finiteOrNull(
       terminalProjection?.inWaterPressureBar,
@@ -676,11 +690,13 @@ ThermalSeries buildThermalSeries(
     }
   }
 
-  ThermalSeriesPoint? finalPoint;
-  for (final pointValue in points.reversed) {
-    if (pointValue.phase == 'ambient-settled') {
-      finalPoint = pointValue;
-      break;
+  ThermalSeriesPoint? finalPoint = ambientSettledPoint;
+  if (finalPoint == null) {
+    for (final pointValue in points.reversed) {
+      if (pointValue.phase == 'ambient-settled') {
+        finalPoint = pointValue;
+        break;
+      }
     }
   }
   finalPoint ??= points.isEmpty ? null : points.last;

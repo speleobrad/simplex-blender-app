@@ -207,6 +207,7 @@ class ThermalSample {
     this.pressureAtTransferEndReferenceBar,
     this.pressureAtTransferEndAmbientBar,
     this.pressureAtTransferEndHotBar,
+    this.rateBarPerMin,
   });
 
   final double elapsedMinutes;
@@ -220,6 +221,7 @@ class ThermalSample {
   final double? pressureAtTransferEndReferenceBar;
   final double? pressureAtTransferEndAmbientBar;
   final double? pressureAtTransferEndHotBar;
+  final double? rateBarPerMin;
 }
 
 /// JS transfer descriptor returned by the rate functions.
@@ -1434,6 +1436,7 @@ List<ThermalSample> _buildThermalStepSamples({
     double? pressureAtTransferEndReferenceBar,
     double? pressureAtTransferEndAmbientBar,
     double? pressureAtTransferEndHotBar,
+    double? rateBarPerMin,
   }) {
     final sample = ThermalSample(
       elapsedMinutes: elapsedMinutes,
@@ -1447,6 +1450,7 @@ List<ThermalSample> _buildThermalStepSamples({
       pressureAtTransferEndReferenceBar: pressureAtTransferEndReferenceBar,
       pressureAtTransferEndAmbientBar: pressureAtTransferEndAmbientBar,
       pressureAtTransferEndHotBar: pressureAtTransferEndHotBar,
+      rateBarPerMin: rateBarPerMin,
     );
     if (samples.isNotEmpty &&
         (samples.last.elapsedMinutes - elapsedMinutes).abs() < 1e-9) {
@@ -1494,6 +1498,7 @@ List<ThermalSample> _buildThermalStepSamples({
         oxygenPercent: point.oxygenPercent,
         heliumPercent: point.heliumPercent,
         pressureReferenceTemperatureC: point.temperatureC,
+        rateBarPerMin: point.rateBarPerMin,
       );
     }
   } else if (_hasTransferProfile(transfer.rateSource)) {
