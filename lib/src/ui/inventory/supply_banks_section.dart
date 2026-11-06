@@ -581,9 +581,19 @@ class _SupplyBanksSectionState extends State<SupplyBanksSection> {
     _commit(bank, bank.copyWith(name: text));
   }
 
+  /// Parses a numeric field edit. Text that is not a finite number is
+  /// rejected with a bank-prefixed message instead of being dropped silently.
+  double? _parseEdit(Bank bank, String text, String label) {
+    final value = _parseFinite(text);
+    if (value == null) {
+      _app.rejectBankEdit(bank, 'Enter a number for the $label.');
+    }
+    return value;
+  }
+
   void _commitVolume(Bank bank, String text, String units) {
     _app.clearBankInputFailure(bank.id);
-    final value = _parseFinite(text);
+    final value = _parseEdit(bank, text, 'volume');
     if (value == null) {
       return;
     }
@@ -595,7 +605,7 @@ class _SupplyBanksSectionState extends State<SupplyBanksSection> {
 
   void _commitPressure(Bank bank, String text, String units) {
     _app.clearBankInputFailure(bank.id);
-    final value = _parseFinite(text);
+    final value = _parseEdit(bank, text, 'pressure');
     if (value == null) {
       return;
     }
@@ -609,7 +619,7 @@ class _SupplyBanksSectionState extends State<SupplyBanksSection> {
 
   void _commitMaxPressure(Bank bank, String text, String units) {
     _app.clearBankInputFailure(bank.id);
-    final value = _parseFinite(text);
+    final value = _parseEdit(bank, text, 'maximum pressure');
     if (value == null) {
       return;
     }
@@ -619,8 +629,10 @@ class _SupplyBanksSectionState extends State<SupplyBanksSection> {
 
   void _commitOxygen(Bank bank, String text) {
     _app.clearBankInputFailure(bank.id);
-    final value = _parseFinite(text);
-    if (value == null) {
+    final value = _parseEdit(bank, text, 'oxygen percent');
+    // A focus change without an edit must not unlink a named preset (JS only
+    // unlinks on a changed input value).
+    if (value == null || value == bank.oxygenPercent) {
       return;
     }
     _commit(
@@ -631,8 +643,8 @@ class _SupplyBanksSectionState extends State<SupplyBanksSection> {
 
   void _commitHelium(Bank bank, String text) {
     _app.clearBankInputFailure(bank.id);
-    final value = _parseFinite(text);
-    if (value == null) {
+    final value = _parseEdit(bank, text, 'helium percent');
+    if (value == null || value == bank.heliumPercent) {
       return;
     }
     _commit(
@@ -648,7 +660,7 @@ class _SupplyBanksSectionState extends State<SupplyBanksSection> {
       _commit(bank, bank.copyWith(pricePerLitre: () => null));
       return;
     }
-    final value = _parseFinite(trimmed);
+    final value = _parseEdit(bank, trimmed, 'price per volume');
     if (value == null) {
       return;
     }
@@ -664,7 +676,7 @@ class _SupplyBanksSectionState extends State<SupplyBanksSection> {
     if (trimmed.isEmpty) {
       return;
     }
-    final tankPrice = _parseFinite(trimmed);
+    final tankPrice = _parseEdit(bank, trimmed, 'full tank price');
     if (tankPrice == null) {
       return;
     }

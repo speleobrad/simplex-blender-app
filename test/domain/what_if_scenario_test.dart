@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/domain/bank.dart';
 import 'package:simplex_blender/src/domain/compare_recipe.dart';
+import 'package:simplex_blender/src/domain/compare_run.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 import 'package:simplex_blender/src/domain/what_if_scenario.dart';
@@ -28,11 +29,6 @@ import 'package:simplex_blender/src/domain/what_if_scenario.dart';
 // - Dart validateCompareRecipe requires oxygen/helium start fields; test 9 uses
 //   the Blending start values (21 / 0) for them.
 //
-// Adapter: the Dart simulator consumes ProtocolStep while buildCompareProtocol
-// returns CompareStep. `_protocolStepOf` copies the CompareStep fields that
-// simulateCompareProtocol reads. JS compare steps never set sourcePressureBar,
-// so it stays null here, matching JS undefined.
-
 WhatIfStart snapshotBlending() => snapshotWhatIfFromBlending(
   initialPressureBar: 50,
   initialOxygenPercent: 21,
@@ -112,30 +108,6 @@ ThermalInput thermalInputOf(WhatIfInput input) => ThermalInput(
   waterSubmersionPercent: input.waterSubmersionPercent,
   tankMassKg: input.tankMassKg,
   inletTemperatureC: input.inletTemperatureC,
-);
-
-ProtocolStep _protocolStepOf(CompareStep step) => ProtocolStep(
-  type: step.type,
-  operation: step.operation,
-  title: step.title,
-  method: step.method,
-  receiverStartPressureBar: step.receiverStartPressureBar,
-  receiverEndPressureBar: step.receiverEndPressureBar,
-  resultingPressureBar: step.resultingPressureBar,
-  resultingMix: step.resultingMix,
-  sourceStartPressureBar: step.sourceStartPressureBar,
-  sourceEndPressureBar: step.sourceEndPressureBar,
-  sourceOxygenPercent: step.sourceOxygenPercent,
-  sourceHeliumPercent: step.sourceHeliumPercent,
-  waitMode: step.waitMode,
-  waitMinutes: step.waitMinutes,
-  targetTemperatureC: step.targetTemperatureC,
-  costOperation: step.costOperation,
-  costOperationId: step.costOperationId,
-  sourceConsumedMoles: step.sourceConsumedMoles,
-  recipeAction: step.recipeAction,
-  sourceBankId: step.sourceBankId,
-  oxygenCompressionRatio: step.oxygenCompressionRatio,
 );
 
 void main() {
@@ -311,7 +283,7 @@ void main() {
       );
       final simulation = simulateCompareProtocol(
         protocolSteps: [
-          for (final step in protocol.protocolSteps) _protocolStepOf(step),
+          for (final step in protocol.protocolSteps) protocolStepOf(step),
         ],
         cylinder: cylinderInputOf(input),
         physics: physicsInputOf(input),
@@ -477,7 +449,7 @@ void main() {
       );
       final simulation = simulateCompareProtocol(
         protocolSteps: [
-          for (final step in protocol.protocolSteps) _protocolStepOf(step),
+          for (final step in protocol.protocolSteps) protocolStepOf(step),
         ],
         cylinder: cylinderInputOf(input),
         physics: physicsInputOf(input),

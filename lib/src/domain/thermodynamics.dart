@@ -1147,21 +1147,27 @@ TransferRate _salvageTransferRate({
   final isOxygenRich = sourceOxygenPercent >= oxygenRichThreshold;
   final pressureChangeBar = -tankDropBar;
   if (step.stage == 'boost') {
+    final receiverVolumeL = step.receiverVolumeL;
     return TransferRate(
       rateSource: 'salvage-booster',
-      rateBarPerMin: calculateBoosterFillRate(
-        cylinderVolumeCm3: booster.cylinderVolumeCm3,
-        bpm: isOxygenRich ? booster.oxygenBoostBpm : booster.otherBoostBpm,
-        sourcePressureBar: (currentPressureBar + transferEndPressureBar) / 2,
-        receiverPressureBar: bankStartPressureBar + bankRiseBar / 2,
-        sourceOxygenPercent: sourceOxygenPercent,
-        sourceHeliumPercent: sourceHeliumPercent,
-        receiverOxygenPercent: step.receiverStartMix?.oxygenPercent ?? 0,
-        receiverHeliumPercent: step.receiverStartMix?.heliumPercent ?? 0,
-        receiverVolumeL: step.receiverVolumeL ?? double.nan,
-        temperatureC: currentTemperatureC,
-        useVdw: physics.useVdw,
-      ).fillRateBarPerMin,
+      rateBarPerMin: receiverVolumeL == null || !receiverVolumeL.isFinite
+          ? null
+          : calculateBoosterFillRate(
+              cylinderVolumeCm3: booster.cylinderVolumeCm3,
+              bpm: isOxygenRich
+                  ? booster.oxygenBoostBpm
+                  : booster.otherBoostBpm,
+              sourcePressureBar:
+                  (currentPressureBar + transferEndPressureBar) / 2,
+              receiverPressureBar: bankStartPressureBar + bankRiseBar / 2,
+              sourceOxygenPercent: sourceOxygenPercent,
+              sourceHeliumPercent: sourceHeliumPercent,
+              receiverOxygenPercent: step.receiverStartMix?.oxygenPercent ?? 0,
+              receiverHeliumPercent: step.receiverStartMix?.heliumPercent ?? 0,
+              receiverVolumeL: receiverVolumeL,
+              temperatureC: currentTemperatureC,
+              useVdw: physics.useVdw,
+            ).fillRateBarPerMin,
       pressureIncreaseBar: bankRiseBar,
       pressureChangeBar: pressureChangeBar,
     );

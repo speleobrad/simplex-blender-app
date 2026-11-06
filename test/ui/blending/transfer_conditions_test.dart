@@ -168,4 +168,20 @@ void main() {
     await tester.pump();
     expect(harness.blend.inputs.inletTemperatureC, closeTo(10, 1e-9));
   });
+
+  testWidgets('a blank ambient with "Same as ambient" on does not loop', (
+    tester,
+  ) async {
+    final harness = _Harness.create();
+    await _pump(tester, harness);
+    await _tapSameAsAmbient(tester);
+
+    harness.blend.setInputs(
+      harness.blend.inputs.copyWith(ambientTemperatureC: double.nan),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(harness.blend.inputs.inletTemperatureC.isNaN, isTrue);
+  });
 }

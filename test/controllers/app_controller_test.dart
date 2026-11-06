@@ -257,4 +257,60 @@ void main() {
     expect(stored.oxygenPercent, 90);
     expect(stored.gasPresetLink, isA<UnnamedPresetLink>());
   });
+
+  test(
+    'addBank gives each new bank a distinct id even within one millisecond',
+    () {
+      final controller = AppController(
+        storage: MemoryStorage(),
+        analytics: _RecordingAnalytics(),
+        now: () => DateTime.fromMillisecondsSinceEpoch(1000),
+      );
+      final initialCount = controller.banks.length;
+
+      controller.addBank();
+      controller.addBank();
+      controller.addBank();
+
+      final ids = controller.banks.map((bank) => bank.id).toList();
+      expect(ids.length, initialCount + 3);
+      expect(ids.toSet().length, ids.length);
+    },
+  );
+
+  test(
+    'editing one of two same-millisecond banks leaves the other unchanged',
+    () {
+      final controller = AppController(
+        storage: MemoryStorage(),
+        analytics: _RecordingAnalytics(),
+        now: () => DateTime.fromMillisecondsSinceEpoch(1000),
+      );
+      controller.addBank();
+      controller.addBank();
+      final added = controller.banks.skip(controller.banks.length - 2).toList();
+      final first = added[0];
+      final second = added[1];
+
+      controller.updateBank(first.copyWith(name: 'Renamed'));
+
+      expect(_bankById(controller.banks, first.id).name, 'Renamed');
+      expect(_bankById(controller.banks, second.id).name, 'New Mix');
+    },
+  );
+
+  test('a bank id removed within the same millisecond is not reissued', () {
+    final controller = AppController(
+      storage: MemoryStorage(),
+      analytics: _RecordingAnalytics(),
+      now: () => DateTime.fromMillisecondsSinceEpoch(1000),
+    );
+    controller.addBank();
+    final removedId = controller.banks.last.id;
+    controller.removeBank(removedId);
+
+    controller.addBank();
+
+    expect(controller.banks.last.id, isNot(removedId));
+  });
 }

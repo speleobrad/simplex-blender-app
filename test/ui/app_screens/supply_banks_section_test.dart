@@ -46,19 +46,14 @@ BlendInputs _defaultInputs() => BlendInputs(
   waitMinutes: 5,
 );
 
-/// Appends a bank. `addBank` names banks by millisecond timestamp, so the
-/// helper waits 2 ms first to keep ids unique.
+/// Appends a bank with the given values.
 Future<void> _addBank(
-  WidgetTester tester,
   AppController app, {
   required String name,
   required double oxygen,
   required double helium,
   double? pricePerLitre,
 }) async {
-  await tester.runAsync(
-    () => Future<void>.delayed(const Duration(milliseconds: 2)),
-  );
   app.addBank();
   app.updateBank(
     app.banks.last.copyWith(
@@ -94,7 +89,6 @@ Future<AppController> _appWithBank(
     app.removeBank(bank.id);
   }
   await _addBank(
-    tester,
     app,
     name: _bankName,
     oxygen: oxygen,
@@ -103,7 +97,6 @@ Future<AppController> _appWithBank(
   );
   if (pureSources) {
     await _addBank(
-      tester,
       app,
       name: 'Pure O2',
       oxygen: 100,
@@ -111,7 +104,6 @@ Future<AppController> _appWithBank(
       pricePerLitre: 0.01,
     );
     await _addBank(
-      tester,
       app,
       name: 'Pure He',
       oxygen: 0,
@@ -406,7 +398,7 @@ void main() {
 
   testWidgets('ignores suggestions that belong to other banks', (tester) async {
     final app = await _appWithBank(tester, pureSources: true);
-    await _addBank(tester, app, name: 'Other', oxygen: 21, helium: 0);
+    await _addBank(app, name: 'Other', oxygen: 21, helium: 0);
     final other = app.banks.last;
     final blend = _blendFor(app);
     await _pump(tester, app, blend);
@@ -507,4 +499,174 @@ void main() {
     );
     expect(field.decoration!.hintText, 'Full tank price');
   });
+
+  testWidgets(
+    'focusing and leaving an unchanged gas field keeps a named preset link',
+    (tester) async {
+      final app = await _appWithBank(tester);
+      final bank = app.banks.firstWhere(
+        (candidate) => candidate.name == _bankName,
+      );
+      app.updateBank(
+        bank.copyWith(gasPresetLink: const NamedPresetLink('Tx 18/45')),
+      );
+      await _pump(tester, app, _blendFor(app));
+
+      final oxygenField = find.descendant(
+        of: _labelled('$_bankName oxygen percentage'),
+        matching: find.byType(TextField),
+      );
+      await tester.tap(oxygenField);
+      await tester.pumpAndSettle();
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+
+      final stored = app.banks.firstWhere(
+        (candidate) => candidate.name == _bankName,
+      );
+      expect(stored.gasPresetLink, const NamedPresetLink('Tx 18/45'));
+    },
+  );
+
+  testWidgets(
+    'editing the oxygen percentage turns the bank into a custom mix',
+    (tester) async {
+      final app = await _appWithBank(tester);
+      final bank = app.banks.firstWhere(
+        (candidate) => candidate.name == _bankName,
+      );
+      app.updateBank(
+        bank.copyWith(gasPresetLink: const NamedPresetLink('Tx 18/45')),
+      );
+      await _pump(tester, app, _blendFor(app));
+
+      final oxygenField = find.descendant(
+        of: _labelled('$_bankName oxygen percentage'),
+        matching: find.byType(TextField),
+      );
+      await tester.tap(oxygenField);
+      await tester.pumpAndSettle();
+      await tester.enterText(oxygenField, '20');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+
+      final stored = app.banks.firstWhere(
+        (candidate) => candidate.name == _bankName,
+      );
+      expect(stored.oxygenPercent, 20);
+      expect(stored.gasPresetLink, const CustomMixLink());
+    },
+  );
+
+  testWidgets(
+    'focusing and leaving an unchanged helium field keeps a named preset link',
+    (tester) async {
+      final app = await _appWithBank(tester);
+      final bank = app.banks.firstWhere(
+        (candidate) => candidate.name == _bankName,
+      );
+      app.updateBank(
+        bank.copyWith(gasPresetLink: const NamedPresetLink('Tx 18/45')),
+      );
+      await _pump(tester, app, _blendFor(app));
+
+      final heliumField = find.descendant(
+        of: _labelled('$_bankName helium percentage'),
+        matching: find.byType(TextField),
+      );
+      await tester.tap(heliumField);
+      await tester.pumpAndSettle();
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+
+      final stored = app.banks.firstWhere(
+        (candidate) => candidate.name == _bankName,
+      );
+      expect(stored.gasPresetLink, const NamedPresetLink('Tx 18/45'));
+    },
+  );
+
+  testWidgets(
+    'editing the helium percentage turns the bank into a custom mix',
+    (tester) async {
+      final app = await _appWithBank(tester);
+      final bank = app.banks.firstWhere(
+        (candidate) => candidate.name == _bankName,
+      );
+      app.updateBank(
+        bank.copyWith(gasPresetLink: const NamedPresetLink('Tx 18/45')),
+      );
+      await _pump(tester, app, _blendFor(app));
+
+      final heliumField = find.descendant(
+        of: _labelled('$_bankName helium percentage'),
+        matching: find.byType(TextField),
+      );
+      await tester.tap(heliumField);
+      await tester.pumpAndSettle();
+      await tester.enterText(heliumField, '30');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+
+      final stored = app.banks.firstWhere(
+        (candidate) => candidate.name == _bankName,
+      );
+      expect(stored.heliumPercent, 30);
+      expect(stored.gasPresetLink, const CustomMixLink());
+    },
+  );
+
+  testWidgets(
+    'non-numeric volume text is rejected with a bank-prefixed message and leaves the bank unchanged',
+    (tester) async {
+      final app = await _appWithBank(tester);
+      final before = app.banks.firstWhere(
+        (candidate) => candidate.name == _bankName,
+      );
+      await _pump(tester, app, _blendFor(app));
+
+      final volumeField = find.descendant(
+        of: _labelled('$_bankName volume in ${unitLabel('volumeL', 'metric')}'),
+        matching: find.byType(TextField),
+      );
+      await tester.tap(volumeField);
+      await tester.pumpAndSettle();
+      await tester.enterText(volumeField, 'abc');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+
+      expect(
+        app.bankInputFailure,
+        '$_bankName: Enter a number for the volume.',
+      );
+      final stored = app.banks.firstWhere(
+        (candidate) => candidate.name == _bankName,
+      );
+      expect(stored.volumeL, before.volumeL);
+    },
+  );
+
+  testWidgets(
+    'leaving an empty full-tank price field does not reject the edit',
+    (tester) async {
+      final app = await _appWithBank(tester);
+      await _pump(tester, app, _blendFor(app));
+
+      await tester.tap(_basisDropdown());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Full tank').last);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: _labelled('$_bankName full tank price'),
+          matching: find.byType(TextField),
+        ),
+      );
+      await tester.pumpAndSettle();
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+
+      expect(app.bankInputFailure, isNull);
+    },
+  );
 }

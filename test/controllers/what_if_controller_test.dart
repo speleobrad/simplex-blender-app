@@ -478,5 +478,50 @@ void main() {
         )),
       );
     });
+
+    test(
+      'moveRow moves a row several places and keeps the others in order',
+      () {
+        final controller = controllerWith(_RecordingAnalytics());
+        controller.updateRows(<CompareRow>[
+          createCompareRow('drain', 'A'),
+          createCompareRow('drain', 'B'),
+          createCompareRow('drain', 'C'),
+        ]);
+
+        controller.moveRow('A', 2);
+        expect(controller.scenario.rows.map((row) => row.id), ['B', 'C', 'A']);
+
+        controller.moveRow('A', -2);
+        expect(controller.scenario.rows.map((row) => row.id), ['A', 'B', 'C']);
+      },
+    );
+
+    test('a simulated add step keeps its recipe gas and label', () {
+      final controller = controllerWith(_RecordingAnalytics());
+      controller.updateRows(<CompareRow>[
+        CompareRow(
+          id: 'row-1',
+          type: 'add',
+          bankId: 'bank-helium',
+          pressureAddedBar: 10,
+          targetPressureBar: 60,
+          pressureInputMode: 'added',
+        ),
+      ]);
+      expect(controller.errors, isEmpty);
+
+      final run = controller.lastRun!;
+      final protocolStep = run.protocol.protocolSteps.firstWhere(
+        (step) => step.sourceBankId == 'bank-helium',
+      );
+      final simulated = run.simulation.protocolSteps.firstWhere(
+        (step) => step.sourceBankId == 'bank-helium',
+      );
+
+      expect(protocolStep.recipeGas, 'Helium');
+      expect(simulated.recipeLabel, protocolStep.recipeLabel);
+      expect(simulated.recipeGas, 'Helium');
+    });
   });
 }
