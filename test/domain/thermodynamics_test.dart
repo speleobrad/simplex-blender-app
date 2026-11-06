@@ -1670,6 +1670,73 @@ void main() {
     );
   });
 
+  test('fixed-minute wait samples cool from the transfer end pressure, not chained', () {
+    final simulation = _thermal(
+      steps: [
+        ProtocolStep(
+          type: 'decant',
+          operation: 'Decant',
+          receiverEndPressureBar: 120,
+          resultingPressureBar: 120,
+          resultingMix: _mix(21, 0),
+          sourceOxygenPercent: 21,
+          sourceHeliumPercent: 0,
+        ),
+        ProtocolStep(
+          type: 'decant',
+          operation: 'Decant',
+          receiverEndPressureBar: 120,
+          resultingPressureBar: 120,
+          resultingMix: _mix(21, 0),
+          sourceOxygenPercent: 21,
+          sourceHeliumPercent: 0,
+        ),
+      ],
+      cylinder: const CylinderInput(initialPressureBar: 50, volumeL: 12),
+      physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
+      thermal: const ThermalInput(
+        tankMaterial: 'steel',
+        coolingMedium: 'air',
+        ambientTemperatureC: 20,
+        targetTemperatureC: 20,
+        waitMode: 'minutes',
+        waitMinutes: 10,
+      ),
+      booster: const BoosterSettings(otherDecantRateBarPerMin: 5),
+    );
+    final wait = _stepThermal(simulation, 0);
+    final waitSamples = wait.samples
+        .where(
+          (s) =>
+              s.elapsedMinutes > wait.durationMinutes + 1e-9 &&
+              s.elapsedMinutes < wait.durationMinutes + wait.waitMinutes - 1e-9,
+        )
+        .toList();
+    expect(waitSamples.length, greaterThan(3));
+    for (var i = 1; i < waitSamples.length; i++) {
+      expect(
+        waitSamples[i].pressureBar,
+        lessThanOrEqualTo(waitSamples[i - 1].pressureBar),
+      );
+    }
+    final last = waitSamples.last;
+    // Ideal-gas scaling at constant volume: the last wait sample must equal the
+    // transfer-end pressure scaled by the absolute-temperature ratio. The
+    // chained bug seeds each sample from the previous one, which compounds the
+    // cooling and lands several-fold below this value. A 2% tolerance is far
+    // above the fixed path's rounding (measured ~1e-16 on this ideal-model
+    // fixture) and far below that error, so it separates the two.
+    const idealScalingTolerance = 0.02;
+    final idealPressureBar =
+        wait.pressureAtTransferEndReferenceBar *
+        (last.temperatureC + 273.15) /
+        (wait.temperatureAtTransferEndC + 273.15);
+    expect(
+      (last.pressureBar - idealPressureBar).abs() / idealPressureBar,
+      lessThan(idealScalingTolerance),
+    );
+  });
+
   test('normal waits converge to ambient for air and water', () {
     for (final coolingMedium in ['air', 'water']) {
       final simulation = _thermal(
