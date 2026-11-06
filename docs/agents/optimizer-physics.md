@@ -18,7 +18,7 @@ Blend optimizer (`lib/src/domain/optimizer.dart` and `lib/src/domain/optimizer/`
 
 Files in the order a request flows through them. Helper files are called from the entry files.
 
-1. `optimizer/blend_input.dart`: parse into `PhysicsInput`, `List<Bank>`, `BlendSettings`, `ThermalInput`. Missing numeric fields parse to `null` and fall back per field. The header comment's fallback numbers (232, 200, 20 bar) do not match the `settings.dart` defaults (booster output 230 bar), so check the consumer, not the comment.
+1. `optimizer/blend_input.dart`: parse into `PhysicsInput`, `List<Bank>`, `BlendSettings`, `ThermalInput`. Missing numeric fields parse to `null`. The solver then uses per-field fallbacks in `optimizer/blend_no_salvage.dart` (`_finiteOr`): compressor 232 bar, booster output 200 bar, minimum source 20 bar. These are solver fallbacks, not settings defaults. `settings.dart` defaults are 232 bar compressor, 230 bar booster output, 5 bar minimum source.
 2. `optimizer/values.dart`: typed readers for the untyped cylinder map (`_numberOrNull`, `_numberOrNan`).
 3. `optimizer/blend_metrics.dart`: `_validateBlendInput`, `_invalidBlendInputResult`, `_failedResult`, diagnostics, shortfalls, summary.
 4. `optimizer/blend_entry.dart`: validation gate, thermal or static dispatch, salvage fallback.
@@ -49,7 +49,7 @@ Files in the order a request flows through them. Helper files are called from th
 - Gas model is `PhysicsInput.model`. `PhysicsInput.useVdw` is `model == 'vdw'`, so any other value runs ideal gas. Settings accept only `ideal` or `vdw` (`lib/src/domain/settings.dart` `PhysicsSettings`, `_gasModelValues`). Default `vdw`. Serialized as `physics.model` by `physicsFromJson` and `physicsToJson` in `lib/src/domain/settings_json.dart`.
 - `gasConstant = 0.083144626`. Pressure in bar, volume in litres, temperature in °C.
 - `getMixParams`: van der Waals mixing. N2 fraction = 1 − O2 − He, clamped at 0. Per-gas parameters are private `_GasParameters` (He, O2, N2).
-- `calcPressure`: returns `9999` when the denominator is ≤ 0.001. Ideal gas when `useVdw` is false.
+- `calcPressure`: VdW only. Returns `9999` when the denominator is ≤ 0.001. Ideal gas (`useVdw` false) returns before that check.
 - `calcMolarDensity`: Newton iteration, at most 40 steps. Stops when `|derivative| < 1e-9` or `|delta| < 1e-6`. Clamps density to `0.95 × maxDensity` and floors at `1e-4`. Ideal gas when `useVdw` is false.
 - `calcZ` and `calcZFromDensity` return 1 when `useVdw` is false.
 - `thermodynamics.dart` constants: `atmosphericPressureBar = 1.01325`, `gaugePressureOffsetBar = 1`, `clearanceRatio = 0.05`, `gamma = 1.4`, `oxygenRichThreshold = 40`, `thermalIntegrationStepSeconds = 0.5`, `heatTransferAirWPerM2K = 12`, `heatTransferWaterWPerM2K = 250`, `defaultWaterSubmersionPercent = 60`.
