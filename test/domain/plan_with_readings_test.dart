@@ -446,6 +446,7 @@ void main() {
     );
     expect(_titles(plan), equals(_titles(base)));
   });
+
   test('a rejected later reading keeps the earlier accepted reading and does not count itself', () {
     final first = _firstReading(scrapIndex);
     final afterFirst = _plan(_withReadings(input, first));
@@ -650,7 +651,7 @@ void main() {
     }
   });
 
-  test('a fallback plan keeps unique operation ids and finite consumed moles on every transfer', () {
+  test('a rejected reading plan keeps unique operation ids and finite consumed moles on every transfer', () {
     final plan = _plan(
       _withReadings(input, <int, Object?>{scrapIndex: _reading(40, 21)}),
     );
