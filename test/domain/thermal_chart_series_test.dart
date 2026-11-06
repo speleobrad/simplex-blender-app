@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/domain/thermal_chart_series.dart';
+import 'package:simplex_blender/src/domain/thermodynamics.dart' as domain;
 
 const List<ThermalProtocolStep> protocolSteps = [
   ThermalProtocolStep(
@@ -741,6 +742,119 @@ void main() {
       expect(peak.pressureBar, closeTo(pressureAt(2), 1e-6));
       expect(pressureAt(4), closeTo(211.0, 1e-6));
       expect(pressureAt(12), closeTo(200, 1e-6));
+    });
+
+    test('a multi-step domain run plots every transfer-end peak on the observed curve', () {
+      final result = domain.simulateThermalProtocol(
+        protocolSteps: const [
+          domain.ProtocolStep(
+            type: 'boost',
+            operation: 'Air fill',
+            resultingPressureBar: 80,
+            receiverStartPressureBar: 25,
+            sourceStartPressureBar: 300,
+            sourceEndPressureBar: 200,
+          ),
+          domain.ProtocolStep(
+            type: 'boost',
+            operation: 'Air fill',
+            resultingPressureBar: 130,
+            sourceStartPressureBar: 200,
+            sourceEndPressureBar: 150,
+          ),
+          domain.ProtocolStep(
+            type: 'boost',
+            operation: 'Air fill',
+            resultingPressureBar: 170,
+            sourceStartPressureBar: 150,
+            sourceEndPressureBar: 120,
+          ),
+          domain.ProtocolStep(
+            type: 'boost',
+            operation: 'Air fill',
+            resultingPressureBar: 200,
+            sourceStartPressureBar: 120,
+            sourceEndPressureBar: 100,
+          ),
+        ],
+        cylinder: const domain.CylinderInput(
+          initialPressureBar: 25,
+          volumeL: 12,
+        ),
+        physics: const domain.PhysicsInput(model: 'ideal', temperatureC: 9),
+        thermal: const domain.ThermalInput(
+          tankMaterial: 'steel',
+          coolingMedium: 'air',
+          ambientTemperatureC: 9,
+          inletTemperatureC: 9,
+          waitMode: 'minutes',
+          waitMinutes: 10,
+          targetTemperatureC: 7,
+          tankMassKg: 12.6,
+          interimMeasurements: [
+            null,
+            domain.InterimMeasurement(pressureBar: 100, temperatureC: 14),
+            domain.InterimMeasurement(pressureBar: 150, temperatureC: 12),
+            domain.InterimMeasurement(pressureBar: 190, temperatureC: 10),
+          ],
+        ),
+        booster: const domain.BoosterSettings(),
+      );
+
+      final steps = [
+        for (final step in result.protocolSteps)
+          ThermalProtocolStep(
+            type: step.type,
+            title: step.title,
+            recipeLabel: step.recipeLabel,
+            receiverStartPressureBar: step.receiverStartPressureBar,
+            resultingPressureBar: step.resultingPressureBar,
+            thermal: ThermalStepThermal(
+              durationMinutes: step.thermal!.durationMinutes,
+              waitMinutes: step.thermal!.waitMinutes,
+              measuredStartPressureBar: step.thermal!.measuredStartPressureBar,
+              temperatureStartC: step.thermal!.temperatureStartC,
+              temperatureAtTransferEndC:
+                  step.thermal!.temperatureAtTransferEndC,
+              pressureAtTransferEndBar: step.thermal!.pressureAtTransferEndBar,
+              temperatureAfterWaitC: step.thermal!.temperatureAfterWaitC,
+              pressureAfterWaitBar: step.thermal!.pressureAfterWaitBar,
+              samples: [
+                for (final sample in step.thermal!.samples)
+                  ThermalInputSample(
+                    elapsedMinutes: sample.elapsedMinutes,
+                    pressureBar: sample.pressureBar,
+                    projectedPressureBar: sample.projectedPressureBar,
+                    temperatureC: sample.temperatureC,
+                  ),
+              ],
+            ),
+          ),
+      ];
+      final series = buildThermalSeries(
+        steps,
+        initial: const ThermalInitialState(
+          initialPressureBar: 25,
+          initialTemperatureC: 9,
+        ),
+      );
+
+      for (var index = 0; index < result.protocolSteps.length; index++) {
+        final thermal = result.protocolSteps[index].thermal!;
+        final stepNumber = index + 1;
+        final peak = series.points.firstWhere(
+          (point) => point.step == stepNumber && point.phase == 'transfer-end',
+        );
+        expect(
+          peak.pressureBar,
+          closeTo(thermal.pressureAtTransferEndBar, 1e-6),
+        );
+        final plotted = series.samples.firstWhere(
+          (sample) =>
+              (sample.elapsedMinutes - peak.elapsedMinutes).abs() < 1e-6,
+        );
+        expect(plotted.pressureBar, closeTo(peak.pressureBar, 1e-6));
+      }
     });
 
     test('thermal samples fall back to reference pressure when no projection is given', () {
