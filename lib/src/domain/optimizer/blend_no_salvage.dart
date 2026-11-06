@@ -560,15 +560,10 @@ Map<String, Object?> _solveBlendWithoutSalvage(
           sourceVolumeL: bank.volumeL,
           sourceStartMoles: isAir
               ? null
-              : _derivedSourceStartMoles(
-                  sourceVolumeL: bank.volumeL,
-                  sourceStartPressureBar: stage.sourceStartPressureBar,
-                  sourceOxygenPercent: bank.oxygenPercent,
-                  sourceHeliumPercent: bank.heliumPercent,
-                  pressureReferenceTemperatureC: temperatureC,
-                  ambientTemperatureC:
-                      thermal?.ambientTemperatureC ?? temperatureC,
-                  useVdw: useVdw,
+              : _jsMathMax(
+                  0.0,
+                  bankDensityByBankId[bank.id]! * bank.volumeL -
+                      boost.addedMoles * stage.startFraction,
                 ),
           receiverStartPressureBar: stage.receiverStartPressureBar,
           receiverEndPressureBar: stage.receiverEndPressureBar,

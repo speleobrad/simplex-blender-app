@@ -570,25 +570,40 @@ void main() {
       expect(result['feasible'], isTrue);
       final transferSteps = _steps(result['protocolSteps']).skip(1).toList();
       expect(transferSteps, hasLength(2));
-      for (final step in transferSteps) {
-        expect(step.sourceVolumeL, closeTo(10.0, 1e-9));
-        expect(
-          step.sourceStartMoles,
-          closeTo(
-            calcMolarDensity(
-                  step.sourceStartPressureBar!,
-                  0.0,
-                  0.0,
-                  20.0,
-                  false,
-                ) *
-                step.sourceVolumeL!,
-            1e-9,
-          ),
-        );
-      }
+      final bankInventoryMoles =
+          calcMolarDensity(120.0, 0.0, 0.0, 20.0, false) * 10.0;
+      expect(transferSteps[0].sourceVolumeL, closeTo(10.0, 1e-9));
+      expect(
+        transferSteps[0].sourceStartMoles,
+        closeTo(bankInventoryMoles, 1e-9),
+      );
+      expect(transferSteps[1].sourceVolumeL, closeTo(10.0, 1e-9));
+      expect(
+        transferSteps[1].sourceStartMoles,
+        closeTo(
+          transferSteps[0].sourceStartMoles! -
+              transferSteps[0].sourceConsumedMoles!,
+          1e-9,
+        ),
+      );
     },
   );
+
+  test('bank transfer stages clamp source inventory at zero', () {
+    final result = optimizeBlend(
+      _equalGasTransferInput(
+        initialPressureBar: 100.0,
+        targetPressureBar: 140.0,
+        bankPressureBar: 120.0,
+      ),
+    );
+
+    final transferSteps = _steps(result['protocolSteps']).skip(1).toList();
+    for (final step in transferSteps) {
+      expect(step.sourceStartMoles, isNotNull);
+      expect(step.sourceStartMoles!, greaterThanOrEqualTo(0.0));
+    }
+  });
 
   test('uses one compressor top-up stage without a finite Air bank in thermal mode', () {
     final result = optimizeBlend(<String, Object?>{
