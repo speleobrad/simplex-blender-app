@@ -73,6 +73,35 @@ ThermalProtocolResult _profiledBoosterSimulation({
   booster: const BoosterSettings(),
 );
 
+/// Transfer-phase samples: those at or before the integrated transfer end,
+/// excluding the post-transfer wait samples.
+List<ThermalSample> _transferSamples(ThermalStep step) => step.samples
+    .where((s) => s.elapsedMinutes <= step.durationMinutes + 1e-9)
+    .toList();
+
+/// Pressure of the transfer sample nearest the transfer midpoint, minus the
+/// straight line between the first and last transfer samples at that time.
+/// A linear (closed-form) transfer gives zero.
+double _midpointDeviationBar(ThermalStep step) {
+  final samples = _transferSamples(step);
+  final duration = step.durationMinutes;
+  final first = samples.first;
+  final last = samples.last;
+  final mid = samples.reduce(
+    (a, b) =>
+        (a.elapsedMinutes - duration / 2).abs() <=
+            (b.elapsedMinutes - duration / 2).abs()
+        ? a
+        : b,
+  );
+  final linear =
+      first.pressureBar +
+      (last.pressureBar - first.pressureBar) *
+          (mid.elapsedMinutes - first.elapsedMinutes) /
+          (last.elapsedMinutes - first.elapsedMinutes);
+  return mid.pressureBar - linear;
+}
+
 void main() {
   test(
     'booster rate uses displacement, BPM, and receiver/source compressibility',
@@ -1942,7 +1971,7 @@ void main() {
   );
 
   test(
-    'salvage booster rate averages the bank rise over the integrated duration',
+    'salvage booster profile follows the integrated source pressure curve',
     () {
       final simulation = _thermal(
         steps: [
@@ -1980,10 +2009,12 @@ void main() {
       final thermal = _stepThermal(simulation, 0);
       expect(thermal.rateSource, equals('salvage-booster'));
       expect(thermal.durationMinutes, greaterThan(0));
+      final transfer = _transferSamples(thermal);
       expect(
-        thermal.rateBarPerMin! * thermal.durationMinutes,
-        closeTo(50, 1e-6),
+        transfer.last.elapsedMinutes,
+        closeTo(thermal.durationMinutes, 1e-9),
       );
+      expect(_midpointDeviationBar(thermal).abs(), greaterThan(3));
     },
   );
 
@@ -2011,16 +2042,17 @@ void main() {
     expect((boosterMoles / bankMoles - 1).abs(), lessThan(0.035));
   });
 
-  test(
-    'a profiled booster transfer reports the integrated duration and rate',
-    () {
-      final simulation = _profiledBoosterSimulation(sourceStartMoles: 100);
-      final step = _stepThermal(simulation, 0);
-      expect(step.rateSource, equals('booster'));
-      expect(step.durationMinutes, greaterThan(0));
-      expect(step.rateBarPerMin! * step.durationMinutes, closeTo(100, 1e-6));
-    },
-  );
+  test('a profiled booster transfer follows the integrated pressure curve', () {
+    final step = _stepThermal(
+      _profiledBoosterSimulation(sourceStartMoles: 100),
+      0,
+    );
+    final transfer = _transferSamples(step);
+    expect(step.rateSource, equals('booster'));
+    expect(transfer.last.elapsedMinutes, closeTo(step.durationMinutes, 1e-9));
+    expect(transfer.last.pressureBar, closeTo(150, 1e-6));
+    expect(_midpointDeviationBar(step).abs(), greaterThan(3));
+  });
 
   test('a closed-form decant step keeps dP / rate', () {
     final simulation = _thermal(
