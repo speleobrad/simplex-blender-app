@@ -829,4 +829,35 @@ void main() {
     expect(summary.heliumRetainedLitres, closeTo(0, 1e-6));
     expect(summary.heliumSalvagedLitres, closeTo(300, 1e-6));
   });
+
+  test(
+    'bank transfers record the source bank volume and starting inventory',
+    () {
+      final protocol = planCompare([
+        addRow('add', 'he-bank', added: 100, target: 150),
+      ]);
+
+      final transfer = protocol.protocolSteps.firstWhere(
+        (step) => step.sourceBankId == 'he-bank',
+      );
+      expect(transfer.sourceVolumeL, heBank.volumeL);
+      expect(
+        transfer.sourceStartMoles,
+        closeTo(
+          calcMolarDensity(heBank.pressureBar, 0, 100, 20, false) *
+              heBank.volumeL,
+          1e-9,
+        ),
+      );
+    },
+  );
+
+  test('compressor Air transfers have no source inventory', () {
+    final protocol = planCompare([compressorRow]);
+
+    final air = protocol.protocolSteps.firstWhere(
+      (step) => step.sourceBankId == 'compressor-air',
+    );
+    expect(air.sourceStartMoles, isNull);
+  });
 }

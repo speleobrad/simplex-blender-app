@@ -541,6 +541,45 @@ GasMixPercent _mixForStep(ProtocolStep step, ThermalStep? state) {
   );
 }
 
+/// Moles of a bank's gas at the start of a transfer step (JS `optimizer.js`
+/// 396–410). The step's source start pressure is moved from the pressure
+/// reference temperature to ambient, then converted to molar density at the
+/// bank's volume. Returns null when the volume or pressure is not finite and
+/// positive. Callers handle unlimited sources and explicit overrides.
+double? _derivedSourceStartMoles({
+  required double sourceVolumeL,
+  required double sourceStartPressureBar,
+  required double sourceOxygenPercent,
+  required double sourceHeliumPercent,
+  required double pressureReferenceTemperatureC,
+  required double ambientTemperatureC,
+  required bool useVdw,
+}) {
+  final sourceStartInventoryPressureBar = sourceStartPressureBar.isFinite
+      ? calculatePressureAtTemperature(
+          pressureBar: sourceStartPressureBar,
+          oxygenPercent: sourceOxygenPercent,
+          heliumPercent: sourceHeliumPercent,
+          fromTemperatureC: pressureReferenceTemperatureC,
+          toTemperatureC: ambientTemperatureC,
+          volumeL: sourceVolumeL,
+          useVdw: useVdw,
+        )
+      : double.nan;
+  return sourceVolumeL.isFinite &&
+          sourceVolumeL > 0 &&
+          sourceStartInventoryPressureBar.isFinite
+      ? calcMolarDensity(
+              sourceStartInventoryPressureBar,
+              sourceOxygenPercent,
+              sourceHeliumPercent,
+              ambientTemperatureC,
+              useVdw,
+            ) *
+            sourceVolumeL
+      : null;
+}
+
 /// JS line 339 `splitTransferAtSafeHotEndpoint`. Builds the two transfer
 /// stages (and the automatic wait between them) for the step at
 /// [unsafeIndex], choosing the largest first-stage fraction that keeps the
@@ -639,37 +678,19 @@ _SafeTransferSplit? _splitTransferAtSafeHotEndpoint({
   final sourceVolumeL = sourceUnlimited
       ? double.nan
       : (transferStep.sourceVolumeL ?? double.nan);
-  final sourceStartReferencePressureBar =
-      transferStep.sourceStartPressureBar ?? double.nan;
-  final sourceStartInventoryPressureBar =
-      sourceStartReferencePressureBar.isFinite
-      ? calculatePressureAtTemperature(
-          pressureBar: sourceStartReferencePressureBar,
-          oxygenPercent: sourceOxygenPercent,
-          heliumPercent: sourceHeliumPercent,
-          fromTemperatureC: pressureReferenceTemperatureC,
-          toTemperatureC: ambientTemperatureC,
-          volumeL: sourceVolumeL,
-          useVdw: useVdw,
-        )
-      : double.nan;
-  final derivedSourceStartMoles =
-      sourceVolumeL.isFinite &&
-          sourceVolumeL > 0 &&
-          sourceStartInventoryPressureBar.isFinite
-      ? calcMolarDensity(
-              sourceStartInventoryPressureBar,
-              sourceOxygenPercent,
-              sourceHeliumPercent,
-              ambientTemperatureC,
-              useVdw,
-            ) *
-            sourceVolumeL
-      : null;
   final sourceStartMoles = sourceUnlimited
       ? null
       : (_finiteValueOrNull(transferStep.sourceStartMoles) ??
-            derivedSourceStartMoles);
+            _derivedSourceStartMoles(
+              sourceVolumeL: sourceVolumeL,
+              sourceStartPressureBar:
+                  transferStep.sourceStartPressureBar ?? double.nan,
+              sourceOxygenPercent: sourceOxygenPercent,
+              sourceHeliumPercent: sourceHeliumPercent,
+              pressureReferenceTemperatureC: pressureReferenceTemperatureC,
+              ambientTemperatureC: ambientTemperatureC,
+              useVdw: useVdw,
+            ));
   final sourceEndMoles = sourceStartMoles != null && sourceStartMoles.isFinite
       ? sourceStartMoles - totalReceiverMoles
       : null;

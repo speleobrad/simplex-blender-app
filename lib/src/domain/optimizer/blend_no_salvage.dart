@@ -558,6 +558,18 @@ Map<String, Object?> _solveBlendWithoutSalvage(
           sourceStartPressureBar: stage.sourceStartPressureBar,
           sourceEndPressureBar: stage.sourceEndPressureBar,
           sourceVolumeL: bank.volumeL,
+          sourceStartMoles: isAir
+              ? null
+              : _derivedSourceStartMoles(
+                  sourceVolumeL: bank.volumeL,
+                  sourceStartPressureBar: stage.sourceStartPressureBar,
+                  sourceOxygenPercent: bank.oxygenPercent,
+                  sourceHeliumPercent: bank.heliumPercent,
+                  pressureReferenceTemperatureC: temperatureC,
+                  ambientTemperatureC:
+                      thermal?.ambientTemperatureC ?? temperatureC,
+                  useVdw: useVdw,
+                ),
           receiverStartPressureBar: stage.receiverStartPressureBar,
           receiverEndPressureBar: stage.receiverEndPressureBar,
           sourceOxygenPercent: thermal != null ? bank.oxygenPercent : null,

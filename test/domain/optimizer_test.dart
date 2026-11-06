@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/data/bank_storage.dart';
 import 'package:simplex_blender/src/domain/bank.dart';
 import 'package:simplex_blender/src/domain/optimizer.dart';
+import 'package:simplex_blender/src/domain/physics.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 
@@ -555,6 +556,40 @@ void main() {
     );
   });
 
+  test(
+    'bank transfer stages record the source inventory left at each stage start',
+    () {
+      final result = optimizeBlend(
+        _equalGasTransferInput(
+          initialPressureBar: 100.0,
+          targetPressureBar: 140.0,
+          bankPressureBar: 120.0,
+        ),
+      );
+
+      expect(result['feasible'], isTrue);
+      final transferSteps = _steps(result['protocolSteps']).skip(1).toList();
+      expect(transferSteps, hasLength(2));
+      for (final step in transferSteps) {
+        expect(step.sourceVolumeL, closeTo(10.0, 1e-9));
+        expect(
+          step.sourceStartMoles,
+          closeTo(
+            calcMolarDensity(
+                  step.sourceStartPressureBar!,
+                  0.0,
+                  0.0,
+                  20.0,
+                  false,
+                ) *
+                step.sourceVolumeL!,
+            1e-9,
+          ),
+        );
+      }
+    },
+  );
+
   test('uses one compressor top-up stage without a finite Air bank in thermal mode', () {
     final result = optimizeBlend(<String, Object?>{
       'cylinder': <String, Object?>{
@@ -596,6 +631,7 @@ void main() {
     expect(topUps.length, 1);
     expect(topUps[0].type, 'boost');
     expect(topUps[0].thermal!.rateSource, 'compressor');
+    expect(topUps[0].sourceStartMoles, isNull);
   });
 
   test('uses boost when source pressure is lower than receiver pressure for the whole transfer', () {

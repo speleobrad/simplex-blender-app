@@ -309,6 +309,8 @@ class CompareStep {
     this.costOperation,
     this.sourceConsumedMoles,
     this.costOperationId,
+    this.sourceVolumeL,
+    this.sourceStartMoles,
   });
 
   final String type;
@@ -340,6 +342,8 @@ class CompareStep {
   final String? costOperation;
   final double? sourceConsumedMoles;
   final String? costOperationId;
+  final double? sourceVolumeL;
+  final double? sourceStartMoles;
 }
 
 class CompareTrajectoryPoint {
@@ -1208,6 +1212,8 @@ CompareStep _plannedTransferStep({
     costOperation: costOperation,
     sourceConsumedMoles: sourceConsumedMoles,
     costOperationId: costOperationId,
+    sourceVolumeL: bank.volumeL,
+    sourceStartMoles: sourceStart.moles,
   );
 }
 
