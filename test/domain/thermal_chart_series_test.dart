@@ -184,6 +184,73 @@ void main() {
       expect(series.finalPoint!.elapsedMinutes, 23);
     });
 
+    test('transfer samples carry the profile rate onto the series', () {
+      final series = buildThermalSeries(
+        const [
+          ThermalProtocolStep(
+            title: 'Step 1: Booster Transfer',
+            recipeLabel: 'Booster',
+            receiverStartPressureBar: 60,
+            thermal: ThermalStepThermal(
+              durationMinutes: 3,
+              waitMinutes: 0,
+              temperatureStartC: 20,
+              temperatureAtTransferEndC: 35,
+              pressureAtTransferEndBar: 100,
+              temperatureAfterWaitC: 35,
+              pressureAfterWaitBar: 100,
+              samples: [
+                ThermalInputSample(
+                  elapsedMinutes: 0,
+                  pressureBar: 60,
+                  temperatureC: 20,
+                  rateBarPerMin: 13.5,
+                ),
+                ThermalInputSample(
+                  elapsedMinutes: 3,
+                  pressureBar: 100,
+                  temperatureC: 35,
+                  rateBarPerMin: 13.5,
+                ),
+              ],
+            ),
+          ),
+        ],
+        initial: const ThermalInitialState(
+          initialPressureBar: 60,
+          initialTemperatureC: 20,
+        ),
+      );
+      final rates = series.samples
+          .where((sample) => sample.rateBarPerMin != null)
+          .map((sample) => sample.rateBarPerMin);
+      expect(rates, isNotEmpty);
+      expect(rates, everyElement(13.5));
+    });
+
+    test('a terminal projection that lands on the last sample draws no extra marker and keeps ambient-settled as the final point', () {
+      final series = buildThermalSeries(
+        protocolSteps,
+        initial: initial80,
+        terminalProjection: const ThermalTerminalProjection(
+          pressureBar: 90,
+          temperatureC: 25,
+          durationMinutes: 0,
+        ),
+      );
+      expect(
+        series.samples.where((sample) => sample.elapsedMinutes == 23),
+        hasLength(1),
+      );
+      expect(
+        series.points.where((point) => point.phase == 'ambient-settled'),
+        isEmpty,
+      );
+      expect(series.finalPoint!.phase, equals('ambient-settled'));
+      expect(series.finalPoint!.elapsedMinutes, equals(23));
+      expect(series.finalPoint!.pressureBar, equals(90));
+    });
+
     test('compare series retains explicit waits before adding an ambient-settled projection', () {
       final series = buildThermalSeries(
         const [

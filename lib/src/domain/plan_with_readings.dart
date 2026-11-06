@@ -69,39 +69,34 @@ Map<String, Object?> planWithReadings(Map<String, Object?> input) {
   if (indices.isEmpty) {
     return base;
   }
-  Map<String, Object?> fallback(String error) => <String, Object?>{
-    ...optimizeBlend(input),
-    'interimReadings': <String, Object?>{
-      'count': indices.length,
-      'error': error,
-    },
-  };
   if (base['feasible'] == false ||
       base['logicalPlan'] == null ||
       base['blend'] == null) {
     return optimizeBlend(input);
   }
   var plan = _startingPlan(base, input);
+  var applied = 0;
   for (final index in indices) {
-    final applied = _applyReading(
+    final result = _applyReading(
       plan,
       input,
       _withReadings(input, _readingsUpTo(measurements, index)),
       index,
       measurements[index]! as Map<String, Object?>,
     );
-    final error = applied.error;
+    final error = result.error;
     if (error != null) {
-      return fallback(error);
+      return <String, Object?>{
+        ...plan,
+        'interimReadings': <String, Object?>{'count': applied, 'error': error},
+      };
     }
-    plan = applied.plan!;
+    plan = result.plan!;
+    applied += 1;
   }
   return <String, Object?>{
     ...plan,
-    'interimReadings': <String, Object?>{
-      'count': indices.length,
-      'error': null,
-    },
+    'interimReadings': <String, Object?>{'count': applied, 'error': null},
   };
 }
 

@@ -154,9 +154,8 @@ _SalvageCascade _runSalvageCascade({
         physics,
       );
       tankMoles -= sized.movedMoles;
-      tankPressureBar = _pressureFromMoles(
-        tankMoles,
-        tankVolumeL,
+      tankPressureBar = calcPressure(
+        tankMoles / tankVolumeL,
         tankMix.oxygenPercent,
         tankMix.heliumPercent,
         temperatureC,

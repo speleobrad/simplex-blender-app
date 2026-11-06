@@ -9,6 +9,7 @@ import 'package:simplex_blender/src/domain/preset_validation.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 import 'package:simplex_blender/src/domain/units.dart';
+import 'package:simplex_blender/src/ui/blending/transfer_rate_text.dart';
 import 'package:simplex_blender/src/ui/shell/tour_targets.dart';
 
 // Source of truth: js/ui/results.js `renderProtocol` (step cards and interim
@@ -110,7 +111,6 @@ class _StepCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final step = steps[index];
     final thermal = step.thermal;
-    final isLast = index == steps.length - 1;
     final interimIndex = _interimIndexOf(step, index);
     final storedReading = _measurementFor(interimIndex, measurements);
     final showInterim =
@@ -176,7 +176,6 @@ class _StepCard extends StatelessWidget {
                 if (thermal != null)
                   _ThermalDetails(
                     thermal: thermal,
-                    isFinalStep: isLast,
                     step: step,
                     units: units,
                     cylinderSpec: cylinderSpec,
@@ -349,7 +348,6 @@ class _SalvageDetails extends StatelessWidget {
 class _ThermalDetails extends StatelessWidget {
   const _ThermalDetails({
     required this.thermal,
-    required this.isFinalStep,
     required this.step,
     required this.units,
     required this.cylinderSpec,
@@ -357,7 +355,6 @@ class _ThermalDetails extends StatelessWidget {
   });
 
   final ThermalStep thermal;
-  final bool isFinalStep;
   final ProtocolStep step;
   final String units;
   final CylinderPressureSpec cylinderSpec;
@@ -390,9 +387,7 @@ class _ThermalDetails extends StatelessWidget {
         : scheme.onSurfaceVariant;
     final isWaitOnly =
         step.type == 'wait' && t.rateSource == 'none' && t.waitMinutes > 0;
-    final waitLabel = isFinalStep
-        ? 'Final cool-off to ${temperature(t.temperatureAfterWaitC)} (${_formatThermalValue(t.waitMinutes)} min)'
-        : '${_formatThermalValue(t.waitMinutes)} min';
+    final waitLabel = '${_formatThermalValue(t.waitMinutes)} min';
 
     final manualRows = <_DetailRow>[
       if (hasManual && measuredPressure != null && measuredPressure.isFinite)
@@ -458,12 +453,16 @@ class _ThermalDetails extends StatelessWidget {
       return _DetailGrid(rows: rows);
     }
 
-    final rate = t.rateBarPerMin;
     final leftRows = <_DetailRow>[
       _DetailRow(
         label: 'Rate',
         value: _PlainValue(
-          '${t.rateSource} · ${rate != null && rate.isFinite ? '${_toFixed(rate, 1)}/min' : '—'}',
+          formatTransferRate(
+            rateBarPerMin: t.rateBarPerMin,
+            durationMinutes: t.durationMinutes,
+            samples: t.samples,
+            units: units,
+          ),
         ),
       ),
       _DetailRow(

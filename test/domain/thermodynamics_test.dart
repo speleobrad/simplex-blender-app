@@ -36,6 +36,72 @@ ThermalCompareResult _compare({
 ThermalStep _stepThermal(ThermalProtocolResult result, int index) =>
     result.protocolSteps[index].thermal!;
 
+// Booster step driven by the profile solver. `sourceVolumeL` and
+// `sourceStartMoles` feed the source-inventory model.
+ThermalProtocolResult _profiledBoosterSimulation({
+  required double sourceStartMoles,
+}) => _thermal(
+  steps: [
+    ProtocolStep(
+      type: 'boost',
+      operation: 'Boost',
+      resultingPressureBar: 150,
+      resultingMix: const GasMixPercent(oxygenPercent: 21, heliumPercent: 0),
+      receiverStartPressureBar: 50,
+      receiverEndPressureBar: 150,
+      sourceStartPressureBar: 200,
+      sourceEndPressureBar: 150,
+      sourceOxygenPercent: 21,
+      sourceHeliumPercent: 0,
+      sourceInventory: 'booster',
+      sourceVolumeL: 12,
+      sourceStartMoles: sourceStartMoles,
+    ),
+  ],
+  cylinder: const CylinderInput(initialPressureBar: 50, volumeL: 12),
+  physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
+  thermal: const ThermalInput(
+    tankMaterial: 'steel',
+    coolingMedium: 'air',
+    ambientTemperatureC: 20,
+    inletTemperatureC: 20,
+    waitMode: 'minutes',
+    waitMinutes: 0,
+    targetTemperatureC: 25,
+    tankMassKg: 10,
+  ),
+  booster: const BoosterSettings(),
+);
+
+/// Transfer-phase samples: those at or before the integrated transfer end,
+/// excluding the post-transfer wait samples.
+List<ThermalSample> _transferSamples(ThermalStep step) => step.samples
+    .where((s) => s.elapsedMinutes <= step.durationMinutes + 1e-9)
+    .toList();
+
+/// Pressure of the transfer sample nearest the transfer midpoint, minus the
+/// straight line between the first and last transfer samples at that time.
+/// A linear (closed-form) transfer gives zero.
+double _midpointDeviationBar(ThermalStep step) {
+  final samples = _transferSamples(step);
+  final duration = step.durationMinutes;
+  final first = samples.first;
+  final last = samples.last;
+  final mid = samples.reduce(
+    (a, b) =>
+        (a.elapsedMinutes - duration / 2).abs() <=
+            (b.elapsedMinutes - duration / 2).abs()
+        ? a
+        : b,
+  );
+  final linear =
+      first.pressureBar +
+      (last.pressureBar - first.pressureBar) *
+          (mid.elapsedMinutes - first.elapsedMinutes) /
+          (last.elapsedMinutes - first.elapsedMinutes);
+  return mid.pressureBar - linear;
+}
+
 void main() {
   test(
     'booster rate uses displacement, BPM, and receiver/source compressibility',
@@ -113,7 +179,7 @@ void main() {
         useVdw: false,
       );
 
-      expect(rate, closeTo(8.447, 0.01));
+      expect(rate.fillRateBarPerMin, closeTo(8.447, 0.01));
     },
   );
 
@@ -149,9 +215,25 @@ void main() {
           temperatureK /
           receiverVolumeL;
 
-      expect(rate, closeTo(expected, 1e-12));
+      expect(rate.fillRateBarPerMin, closeTo(expected, 1e-12));
     },
   );
+
+  test('compressor fill rate reports moles per minute', () {
+    final result = calculateCompressorFillRate(
+      inletFlowLPerMin: 100,
+      receiverPressureBar: 1.01325,
+      receiverOxygenPercent: 21,
+      receiverHeliumPercent: 0,
+      receiverVolumeL: 12,
+      ambientTemperatureC: 20,
+      receiverTemperatureC: 20,
+      useVdw: false,
+    );
+    final zInlet = calcZ(1.01325, 21, 0, 20, false);
+    final expectedMoles = 1.01325 * 100 / (zInlet * gasConstant * 293.15);
+    expect(result.molesPerMin, closeTo(expectedMoles, 1e-12));
+  });
 
   test('cooling reaches an absolute target using Newton cooling', () {
     final minutes = calculateCoolingTime(
@@ -1588,6 +1670,73 @@ void main() {
     );
   });
 
+  test('fixed-minute wait samples cool from the transfer end pressure, not chained', () {
+    final simulation = _thermal(
+      steps: [
+        ProtocolStep(
+          type: 'decant',
+          operation: 'Decant',
+          receiverEndPressureBar: 120,
+          resultingPressureBar: 120,
+          resultingMix: _mix(21, 0),
+          sourceOxygenPercent: 21,
+          sourceHeliumPercent: 0,
+        ),
+        ProtocolStep(
+          type: 'decant',
+          operation: 'Decant',
+          receiverEndPressureBar: 120,
+          resultingPressureBar: 120,
+          resultingMix: _mix(21, 0),
+          sourceOxygenPercent: 21,
+          sourceHeliumPercent: 0,
+        ),
+      ],
+      cylinder: const CylinderInput(initialPressureBar: 50, volumeL: 12),
+      physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
+      thermal: const ThermalInput(
+        tankMaterial: 'steel',
+        coolingMedium: 'air',
+        ambientTemperatureC: 20,
+        targetTemperatureC: 20,
+        waitMode: 'minutes',
+        waitMinutes: 10,
+      ),
+      booster: const BoosterSettings(otherDecantRateBarPerMin: 5),
+    );
+    final wait = _stepThermal(simulation, 0);
+    final waitSamples = wait.samples
+        .where(
+          (s) =>
+              s.elapsedMinutes > wait.durationMinutes + 1e-9 &&
+              s.elapsedMinutes < wait.durationMinutes + wait.waitMinutes - 1e-9,
+        )
+        .toList();
+    expect(waitSamples.length, greaterThan(3));
+    for (var i = 1; i < waitSamples.length; i++) {
+      expect(
+        waitSamples[i].pressureBar,
+        lessThanOrEqualTo(waitSamples[i - 1].pressureBar),
+      );
+    }
+    final last = waitSamples.last;
+    // Ideal-gas scaling at constant volume: the last wait sample must equal the
+    // transfer-end pressure scaled by the absolute-temperature ratio. The
+    // chained bug seeds each sample from the previous one, which compounds the
+    // cooling and lands several-fold below this value. A 2% tolerance is far
+    // above the fixed path's rounding (measured ~1e-16 on this ideal-model
+    // fixture) and far below that error, so it separates the two.
+    const idealScalingTolerance = 0.02;
+    final idealPressureBar =
+        wait.pressureAtTransferEndReferenceBar *
+        (last.temperatureC + 273.15) /
+        (wait.temperatureAtTransferEndC + 273.15);
+    expect(
+      (last.pressureBar - idealPressureBar).abs() / idealPressureBar,
+      lessThan(idealScalingTolerance),
+    );
+  });
+
   test('normal waits converge to ambient for air and water', () {
     for (final coolingMedium in ['air', 'water']) {
       final simulation = _thermal(
@@ -1852,7 +2001,7 @@ void main() {
             operation: 'Salvage Boost',
             receiverStartPressureBar: 40,
             receiverEndPressureBar: 90,
-            receiverVolumeL: 50,
+            receiverVolumeL: 20,
             receiverStartMix: _mix(32, 0),
             resultingPressureBar: 80,
             resultingMix: _mix(21, 35),
@@ -1860,7 +2009,7 @@ void main() {
             sourceHeliumPercent: 35,
           ),
         ],
-        cylinder: const CylinderInput(initialPressureBar: 100, volumeL: 12),
+        cylinder: const CylinderInput(initialPressureBar: 200, volumeL: 12),
         physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
         thermal: const ThermalInput(
           tankMaterial: 'steel',
@@ -1885,6 +2034,54 @@ void main() {
         thermal.temperatureAtTransferEndC,
         lessThan(thermal.temperatureStartC),
       );
+    },
+  );
+
+  test(
+    'salvage booster profile follows the integrated source pressure curve',
+    () {
+      final simulation = _thermal(
+        steps: [
+          ProtocolStep(
+            type: 'salvage',
+            stage: 'boost',
+            operation: 'Salvage Boost',
+            receiverStartPressureBar: 40,
+            receiverEndPressureBar: 90,
+            receiverVolumeL: 20,
+            receiverStartMix: _mix(32, 0),
+            resultingPressureBar: 80,
+            resultingMix: _mix(21, 35),
+            sourceOxygenPercent: 21,
+            sourceHeliumPercent: 35,
+          ),
+        ],
+        cylinder: const CylinderInput(initialPressureBar: 200, volumeL: 12),
+        physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
+        thermal: const ThermalInput(
+          tankMaterial: 'steel',
+          coolingMedium: 'air',
+          ambientTemperatureC: 20,
+          inletTemperatureC: 20,
+          waitMode: 'minutes',
+          waitMinutes: 0,
+          targetTemperatureC: 25,
+        ),
+        booster: const BoosterSettings(
+          otherBoostBpm: 60,
+          cylinderVolumeCm3: 500,
+        ),
+      );
+
+      final thermal = _stepThermal(simulation, 0);
+      expect(thermal.rateSource, equals('salvage-booster'));
+      expect(thermal.durationMinutes, greaterThan(0));
+      final transfer = _transferSamples(thermal);
+      expect(
+        transfer.last.elapsedMinutes,
+        closeTo(thermal.durationMinutes, 1e-9),
+      );
+      expect(_midpointDeviationBar(thermal).abs(), greaterThan(3));
     },
   );
 
@@ -1924,54 +2121,6 @@ void main() {
     expect(thermal.durationMinutes, equals(0));
   });
 
-  test('salvage booster rate is the booster fill rate at the transfer midpoint pressures', () {
-    final simulation = _thermal(
-      steps: [
-        ProtocolStep(
-          type: 'salvage',
-          stage: 'boost',
-          operation: 'Salvage Boost',
-          receiverStartPressureBar: 40,
-          receiverEndPressureBar: 90,
-          receiverVolumeL: 50,
-          receiverStartMix: _mix(32, 0),
-          resultingPressureBar: 80,
-          resultingMix: _mix(21, 35),
-          sourceOxygenPercent: 21,
-          sourceHeliumPercent: 35,
-        ),
-      ],
-      cylinder: const CylinderInput(initialPressureBar: 100, volumeL: 12),
-      physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
-      thermal: const ThermalInput(
-        tankMaterial: 'steel',
-        coolingMedium: 'air',
-        ambientTemperatureC: 20,
-        inletTemperatureC: 20,
-        waitMode: 'minutes',
-        waitMinutes: 0,
-        targetTemperatureC: 25,
-      ),
-      booster: const BoosterSettings(otherBoostBpm: 60, cylinderVolumeCm3: 500),
-    );
-
-    final thermal = _stepThermal(simulation, 0);
-    final expected = calculateBoosterFillRate(
-      cylinderVolumeCm3: 500,
-      bpm: 60,
-      sourcePressureBar: (100 + 80) / 2,
-      receiverPressureBar: (40 + 90) / 2,
-      sourceOxygenPercent: 21,
-      sourceHeliumPercent: 35,
-      receiverOxygenPercent: 32,
-      receiverHeliumPercent: 0,
-      receiverVolumeL: 50,
-      temperatureC: thermal.temperatureStartC,
-      useVdw: false,
-    ).fillRateBarPerMin;
-    expect(thermal.rateBarPerMin, closeTo(expected, 1e-9));
-  });
-
   test('booster midpoint rate moves within 3.5% of the real-gas receiver moles over a 40-90 bar van der Waals rise', () {
     // The rate is evaluated at midpoint pressures, so the moles check is approximate under van der Waals.
     final rate = calculateBoosterFillRate(
@@ -1995,4 +2144,80 @@ void main() {
         50;
     expect((boosterMoles / bankMoles - 1).abs(), lessThan(0.035));
   });
+
+  test('a profiled booster transfer follows the integrated pressure curve', () {
+    final step = _stepThermal(
+      _profiledBoosterSimulation(sourceStartMoles: 100),
+      0,
+    );
+    final transfer = _transferSamples(step);
+    expect(step.rateSource, equals('booster'));
+    expect(transfer.last.elapsedMinutes, closeTo(step.durationMinutes, 1e-9));
+    expect(transfer.last.pressureBar, closeTo(150, 1e-6));
+    expect(_midpointDeviationBar(step).abs(), greaterThan(3));
+  });
+
+  test(
+    'a profiled booster transfer gives every transfer sample a positive rate',
+    () {
+      final step = _stepThermal(
+        _profiledBoosterSimulation(sourceStartMoles: 100),
+        0,
+      );
+      final rates = _transferSamples(step).map((s) => s.rateBarPerMin).toList();
+      expect(rates, isNotEmpty);
+      expect(rates.every((r) => r != null && r.isFinite && r > 0), isTrue);
+    },
+  );
+
+  test('a closed-form decant step keeps dP / rate', () {
+    final simulation = _thermal(
+      steps: [
+        const ProtocolStep(
+          type: 'decant',
+          operation: 'Decant',
+          resultingPressureBar: 150,
+          resultingMix: GasMixPercent(oxygenPercent: 21, heliumPercent: 0),
+          receiverStartPressureBar: 50,
+          receiverEndPressureBar: 150,
+          sourceStartPressureBar: 200,
+          sourceEndPressureBar: 150,
+          sourceOxygenPercent: 21,
+          sourceHeliumPercent: 0,
+        ),
+      ],
+      cylinder: const CylinderInput(initialPressureBar: 50, volumeL: 12),
+      physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
+      thermal: const ThermalInput(
+        tankMaterial: 'steel',
+        coolingMedium: 'air',
+        ambientTemperatureC: 20,
+        inletTemperatureC: 20,
+        waitMode: 'minutes',
+        waitMinutes: 0,
+        targetTemperatureC: 25,
+        tankMassKg: 10,
+      ),
+    );
+    final step = _stepThermal(simulation, 0);
+    expect(step.rateSource, equals('decant-rate'));
+    expect(step.durationMinutes, closeTo(100 / step.rateBarPerMin!, 1e-9));
+    expect(step.samples.every((s) => s.rateBarPerMin == null), isTrue);
+  });
+
+  test(
+    'a profiled transfer that stalls surfaces TRANSFER_PROFILE_UNSATISFIED',
+    () {
+      expect(
+        () => _profiledBoosterSimulation(sourceStartMoles: 0.0001),
+        throwsA(
+          isA<TransferProfileException>().having(
+            (e) => e.code,
+            'code',
+            'TRANSFER_PROFILE_UNSATISFIED',
+          ),
+        ),
+      );
+    },
+  );
 }

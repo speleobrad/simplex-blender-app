@@ -133,3 +133,20 @@ double calcZ(
   );
   return calcZFromDensity(pressureBar, density, temperatureC, true);
 }
+
+double inventoryPressure({
+  required double moles,
+  required double volumeL,
+  required double oxygenMoles,
+  required double heliumMoles,
+  required double temperatureC,
+  required bool useVdw,
+}) {
+  return calcPressure(
+    moles / volumeL,
+    moles > 0 ? oxygenMoles / moles * 100 : 0.0,
+    moles > 0 ? heliumMoles / moles * 100 : 0.0,
+    temperatureC,
+    useVdw,
+  );
+}

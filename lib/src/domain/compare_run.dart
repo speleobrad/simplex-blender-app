@@ -95,6 +95,8 @@ ProtocolStep protocolStepOf(CompareStep step) => ProtocolStep(
   recipeLabel: step.recipeLabel,
   sourceBankId: step.sourceBankId,
   oxygenCompressionRatio: step.oxygenCompressionRatio,
+  sourceVolumeL: step.sourceVolumeL,
+  sourceStartMoles: step.sourceStartMoles,
 );
 
 /// Port of `compareWaitStates` (`js/main.js` lines 1125-1171).

@@ -447,6 +447,23 @@ void main() {
     expect(_titles(plan), equals(_titles(base)));
   });
 
+  test('a rejected later reading keeps the earlier accepted reading and does not count itself', () {
+    final first = _firstReading(scrapIndex);
+    final afterFirst = _plan(_withReadings(input, first));
+    final steps = _steps(afterFirst);
+    final laterIndex = steps[steps.length - 2].measurementIndex!;
+    final plan = _plan(
+      _withReadings(input, <int, Object?>{
+        ...first,
+        laterIndex: _reading(40, 21),
+      }),
+    );
+    expect(_interim(plan)['error'], isNotNull);
+    expect(_interim(plan)['count'], equals(1));
+    expect(_titles(plan), equals(_titles(afterFirst)));
+    expect(_stepAt(plan, scrapIndex).thermal!.pressureStartBar, equals(54));
+  });
+
   test('later readings chain on the re-planned recipe and every recompute keeps index to step mapping stable', () {
     final first = _firstReading(scrapIndex);
     final afterFirst = _plan(_withReadings(input, first));
@@ -634,7 +651,7 @@ void main() {
     }
   });
 
-  test('a fallback plan keeps unique operation ids and finite consumed moles on every transfer', () {
+  test('a rejected reading plan keeps unique operation ids and finite consumed moles on every transfer', () {
     final plan = _plan(
       _withReadings(input, <int, Object?>{scrapIndex: _reading(40, 21)}),
     );
