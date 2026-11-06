@@ -679,5 +679,110 @@ void main() {
         expect(inWater.label.toLowerCase(), isNot(contains('target')));
       },
     );
+
+    test('thermal samples follow projected pressure so the curve joins the transfer-end peak', () {
+      final series = buildThermalSeries(
+        const [
+          ThermalProtocolStep(
+            title: 'Air fill',
+            recipeLabel: 'Air fill',
+            receiverStartPressureBar: 25,
+            thermal: ThermalStepThermal(
+              durationMinutes: 2,
+              waitMinutes: 10,
+              temperatureStartC: 9,
+              temperatureAtTransferEndC: 26,
+              pressureAtTransferEndBar: 212.44,
+              temperatureAfterWaitC: 7,
+              pressureAfterWaitBar: 200,
+              samples: [
+                ThermalInputSample(
+                  elapsedMinutes: 0,
+                  pressureBar: 25,
+                  projectedPressureBar: 25,
+                  temperatureC: 9,
+                ),
+                ThermalInputSample(
+                  elapsedMinutes: 2,
+                  pressureBar: 200,
+                  projectedPressureBar: 212.44,
+                  temperatureC: 26,
+                ),
+                ThermalInputSample(
+                  elapsedMinutes: 4,
+                  pressureBar: 199.37,
+                  projectedPressureBar: 211.0,
+                  temperatureC: 25,
+                ),
+                ThermalInputSample(
+                  elapsedMinutes: 12,
+                  pressureBar: 200,
+                  projectedPressureBar: 200,
+                  temperatureC: 7,
+                ),
+              ],
+            ),
+          ),
+        ],
+        initial: const ThermalInitialState(
+          initialPressureBar: 25,
+          initialTemperatureC: 9,
+        ),
+      );
+
+      double pressureAt(double minute) => series.samples
+          .firstWhere((sample) => (sample.elapsedMinutes - minute).abs() < 1e-9)
+          .pressureBar;
+
+      final peak = series.points.firstWhere(
+        (point) => (point.elapsedMinutes - 2).abs() < 1e-9,
+      );
+      expect(pressureAt(2), closeTo(212.44, 1e-6));
+      expect(peak.pressureBar, closeTo(pressureAt(2), 1e-6));
+      expect(pressureAt(4), closeTo(211.0, 1e-6));
+      expect(pressureAt(12), closeTo(200, 1e-6));
+    });
+
+    test('thermal samples fall back to reference pressure when no projection is given', () {
+      final series = buildThermalSeries(
+        const [
+          ThermalProtocolStep(
+            title: 'Air fill',
+            recipeLabel: 'Air fill',
+            receiverStartPressureBar: 25,
+            thermal: ThermalStepThermal(
+              durationMinutes: 2,
+              waitMinutes: 10,
+              temperatureStartC: 9,
+              temperatureAtTransferEndC: 26,
+              pressureAtTransferEndBar: 212.44,
+              temperatureAfterWaitC: 7,
+              pressureAfterWaitBar: 200,
+              samples: [
+                ThermalInputSample(
+                  elapsedMinutes: 0,
+                  pressureBar: 25,
+                  temperatureC: 9,
+                ),
+                ThermalInputSample(
+                  elapsedMinutes: 2,
+                  pressureBar: 200,
+                  temperatureC: 26,
+                ),
+              ],
+            ),
+          ),
+        ],
+        initial: const ThermalInitialState(
+          initialPressureBar: 25,
+          initialTemperatureC: 9,
+        ),
+      );
+
+      final transfer = series.samples.firstWhere(
+        (sample) => (sample.elapsedMinutes - 2).abs() < 1e-9,
+      );
+      expect(transfer.pressureBar, closeTo(200, 1e-6));
+    });
   });
 }
