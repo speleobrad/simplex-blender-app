@@ -851,6 +851,7 @@ void main() {
         );
         final plotted = series.samples.firstWhere(
           (sample) =>
+              sample.step == stepNumber &&
               (sample.elapsedMinutes - peak.elapsedMinutes).abs() < 1e-6,
         );
         expect(plotted.pressureBar, closeTo(peak.pressureBar, 1e-6));
