@@ -10,8 +10,8 @@ import 'package:simplex_blender/src/domain/pure_prices.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 
-// Source of truth: docs/architecture.md (interim readings, cost derivation,
-// bank pricing suggestions) and
+// Source of truth: docs/agents/controllers-state.md (interim readings,
+// cost derivation, bank pricing suggestions) and
 // js/main.js (recalculate, applyInterimMeasurement, clearInterimMeasurement,
 // bankSuggestionFor).
 //
