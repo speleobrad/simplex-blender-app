@@ -83,7 +83,7 @@ class WhatIfRun {
 /// Controller for the What-if screen. Port of the JS `runWhatIf` flow and its
 /// row and start-field handlers in `js/main.js`.
 ///
-/// Invariants (from `docs/architecture.md`):
+/// Invariants (from `docs/agents/controllers-state.md`):
 /// - A failed run keeps the last valid [result] and [warnings], and still
 ///   sets [hasRun] (JS `runWhatIf` validation and catch branches).
 /// - [isStale] is derived: a result is stale once the draft revision or the
