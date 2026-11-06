@@ -7,10 +7,10 @@ Layering, import direction, UI feature map, and porting conventions for `lib/`.
 | Layer | Path | Role | May import |
 |---|---|---|---|
 | domain | `lib/src/domain/` | Pure Dart: physics, thermodynamics, optimizer, validation, settings JSON shape | `domain` only. No `package:flutter`. |
-| data | `lib/src/data/` | `KeyValueStorage` adapters, settings/bank/theme/onboarding persistence, settings migrations | `data`, `domain`, `package:shared_preferences` (`preferences_storage.dart` only) |
+| data | `lib/src/data/` | `KeyValueStorage` adapters, settings/bank/theme/onboarding persistence, settings migrations, `preset_source.dart` (file picker and HTTP) | `data`, `domain`, `package:shared_preferences` (`preferences_storage.dart` only), `package:file_picker` and `package:http` (`preset_source.dart` only) |
 | analytics | `lib/src/analytics/` | `Analytics` interface, event enums, `NoopAnalytics`, `GatedAnalytics`, `AptabaseAnalytics` | `analytics`, `package:aptabase_flutter` |
 | controllers | `lib/src/controllers/` | `ChangeNotifier` state: `AppController`, `BlendController`, `WhatIfController` | `domain`, `data`, `analytics`, `package:flutter/foundation.dart` |
-| ui | `lib/src/ui/` | Widgets, grouped by feature. Reads controllers and domain value types | `controllers`, `domain`, `ui`, `package:flutter`. `data` and `analytics` only in `ui/settings/settings_screen.dart` |
+| ui | `lib/src/ui/` | Widgets, grouped by feature. Reads controllers and domain value types | `controllers`, `domain`, `ui`, `package:flutter`, `package:url_launcher` (`about/about_screen.dart` only), `package:http` (`settings/settings_screen.dart` only). `data` and `analytics` only in `ui/settings/settings_screen.dart` |
 
 ## Wiring point
 
@@ -30,12 +30,12 @@ Verified by grep of `import` lines in each layer:
 
 - `domain` imports no `package:flutter`, `controllers`, `data`, `analytics`, or `ui`.
 - `controllers` import no other controller. `BlendController` gets bank writes through the `updateBank` callback rather than importing `AppController`.
-- `controllers` import `data` only in `app_controller.dart`. Other controllers reach storage through `AppController`.
+- `controllers` import `data` only in `app_controller.dart`. `BlendController` and `WhatIfController` do not import `data` or access storage.
 - `ui` imports `controllers` and `domain`. Only `settings_screen.dart` imports `data` and `analytics`.
 - `data` imports `domain` and `data`. It does not import `controllers`, `analytics`, or `ui`.
 - `analytics` is the only layer that imports `package:aptabase_flutter`.
 
-Known exceptions: `lib/main.dart` (composition root) imports every layer. `ui/settings/settings_screen.dart` imports `data` and `analytics`. Some files use relative imports (`what_if_controller.dart`, `settings_screen.dart`). New imports use the package form: `package:simplex_blender/src/...`.
+Known exceptions: `lib/main.dart` (composition root) imports every layer. `ui/settings/settings_screen.dart` imports `data/preset_source.dart` and `analytics/analytics_events.dart`. Some files use relative imports (`what_if_controller.dart`, `settings_screen.dart`). New imports use the package form: `package:simplex_blender/src/...`.
 
 ## UI feature map
 

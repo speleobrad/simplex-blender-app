@@ -18,7 +18,7 @@ Blend optimizer (`lib/src/domain/optimizer.dart` and `lib/src/domain/optimizer/`
 
 Files in the order a request flows through them. Helper files are called from the entry files.
 
-1. `optimizer/blend_input.dart`: parse into `PhysicsInput`, `List<Bank>`, `BlendSettings`, `ThermalInput`. Fallback defaults: 232 bar compressor, 200 bar booster output, 20 bar minimum source.
+1. `optimizer/blend_input.dart`: parse into `PhysicsInput`, `List<Bank>`, `BlendSettings`, `ThermalInput`. Missing numeric fields parse to `null` and fall back per field. The header comment's fallback numbers (232, 200, 20 bar) do not match the `settings.dart` defaults (booster output 230 bar), so check the consumer, not the comment.
 2. `optimizer/values.dart`: typed readers for the untyped cylinder map (`_numberOrNull`, `_numberOrNan`).
 3. `optimizer/blend_metrics.dart`: `_validateBlendInput`, `_invalidBlendInputResult`, `_failedResult`, diagnostics, shortfalls, summary.
 4. `optimizer/blend_entry.dart`: validation gate, thermal or static dispatch, salvage fallback.

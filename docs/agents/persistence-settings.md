@@ -34,7 +34,7 @@ No other `simplex-*` keys exist in `lib/`. Tests use the same constants.
 
 ## Settings
 
-Files: `settings_storage.dart`, `settings_json.dart`, `settings_migrations.dart`.
+Files: `lib/src/data/settings_storage.dart`, `lib/src/domain/settings_json.dart`, `lib/src/data/settings_migrations.dart`.
 
 Load (`loadSettings`):
 - `getItem` throws: `onFallback`, defaults.
@@ -49,8 +49,8 @@ Save (`saveSettings`):
 - `settingsToJson` key order follows the JS `copySettings` shape.
 
 Shape:
-- There is no version field. Shape is enforced only by `validateSettingsJson` (`settings_json.dart`).
-- Checked: `gasPresets` and `cylinderPresets` are lists; `units` is `metric` or `imperial`; `pressureLimitMode` is `hard-stop` or `warning`; `pressureWarningUnlocked` is bool; `warning` mode requires the unlock; `interimPressureTolerancePercent` is in 0.5–10; `physics.model` is `ideal` or `vdw`; booster scalars; compressor, booster, gas, and cylinder preset validators; preset names unique; `validateCostSettings`.
+- There is no version field. Shape is enforced only by `validateSettingsJson` (`lib/src/domain/settings_json.dart`).
+- Checked: `gasPresets` and `cylinderPresets` are non-empty lists; `units` is `metric` or `imperial`; `pressureLimitMode` is `hard-stop` or `warning`; `pressureWarningUnlocked` is bool; `warning` mode requires the unlock; `interimPressureTolerancePercent` is in 0.5–10; `physics.model` is `ideal` or `vdw`; booster scalars; compressor, booster, gas, and cylinder preset validators; preset names unique; `validateCostSettings`.
 - `settingsFromJson` assumes validated input. Do not call it on raw JSON.
 
 Migrations (`normalizeSettingsJson`), in order:
@@ -67,7 +67,7 @@ Migration rule: use `containsKey`. A present `null` is kept, and only absent key
 
 ## Inventory banks
 
-File: `bank_storage.dart`.
+File: `lib/src/data/bank_storage.dart`.
 
 Load (`loadSupplyBanks`):
 - `getItem` throws or `FormatException`: `onFallback`, defaults.
@@ -84,20 +84,20 @@ Save (`saveSupplyBanks`): validates, throws `DomainError(errors.join(' '))` befo
 
 ## Theme
 
-Files: `theme_storage.dart`, `lib/src/domain/theme.dart`.
+Files: `lib/src/data/theme_storage.dart`, `lib/src/domain/theme.dart`.
 - Load: any throw or unknown value returns `DEFAULT_THEME` (`'light'`). Not reported.
 - Save: `themeToStore` throws `RangeError('Theme must be light or dark.')` before writing. Valid values: `light`, `dark`.
 
 ## Onboarding
 
-Files: `onboarding_storage.dart`, `lib/src/domain/onboarding.dart`.
+Files: `lib/src/data/onboarding_storage.dart`, `lib/src/domain/onboarding.dart`.
 - Load: `getItem` throws, unparsable JSON, or missing or non-bool `wizardSeen`: `DEFAULT_ONBOARDING_STATE` (`wizardSeen: false`) and `onFallback`. `null`: default, no `onFallback`.
 - Extra keys are ignored. Legacy `consentAccepted` is dropped on the next save.
 - Save writes `{"wizardSeen": <bool>}` only.
 
 ## Analytics opt-out
 
-File: `analytics_storage.dart`.
+File: `lib/src/data/analytics_storage.dart`.
 - Load: `null` is enabled. `{"enabled": bool}` returns that value. Anything else, or a throw, is enabled. This path is silent: there is no `onFallback` and no warning.
 - Save writes `{"enabled": <bool>}`.
 

@@ -40,7 +40,7 @@ Test layout, shared helpers, and the JS-parity conventions for Dart tests. For h
   - `js/main.js`: `blend_controller_test.dart`, `pressure_warnings_test.dart`.
   - `js/bank-storage.js`: `calculator_input_test.dart`.
   - `js/preset-validation.js`: `preset_validation_test.dart`. Messages are verbatim; the same file pins user-visible text instead of JS `RangeError` cases.
-  - UI results and blending screen: `mixing_steps_test.dart`, `blending_screen_test.dart`.
+  - `js/ui/results.js` (`renderProtocol`) and `index.html`: `mixing_steps_test.dart`. `index.html` tour anchors: `blending_screen_test.dart`.
   - `tests/browser/persistence.spec.js`: `preset_import_test.dart`. Its fixture files come from the same JS repo.
   - `tests/supply-banks-ui.test.js`: `supply_banks_section_test.dart`.
 - Structure tests assert JS key order (`calculator_input_test.dart`).
