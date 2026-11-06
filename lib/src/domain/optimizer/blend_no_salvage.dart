@@ -330,9 +330,8 @@ Map<String, Object?> _solveBlendWithoutSalvage(
     useVdw,
   );
   final postSalvagePressure = salvagedMoles > 0
-      ? _pressureFromMoles(
-          initialMoles - salvagedMoles,
-          volumeL,
+      ? calcPressure(
+          (initialMoles - salvagedMoles) / volumeL,
           initialOxygenPercent,
           initialHeliumPercent,
           temperatureC,
@@ -559,6 +558,13 @@ Map<String, Object?> _solveBlendWithoutSalvage(
           sourceStartPressureBar: stage.sourceStartPressureBar,
           sourceEndPressureBar: stage.sourceEndPressureBar,
           sourceVolumeL: bank.volumeL,
+          sourceStartMoles: isAir
+              ? null
+              : _jsMathMax(
+                  0.0,
+                  bankDensityByBankId[bank.id]! * bank.volumeL -
+                      boost.addedMoles * stage.startFraction,
+                ),
           receiverStartPressureBar: stage.receiverStartPressureBar,
           receiverEndPressureBar: stage.receiverEndPressureBar,
           sourceOxygenPercent: thermal != null ? bank.oxygenPercent : null,

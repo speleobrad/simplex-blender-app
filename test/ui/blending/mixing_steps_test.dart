@@ -8,6 +8,7 @@ import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 import 'package:simplex_blender/src/domain/units.dart';
 import 'package:simplex_blender/src/ui/blending/mixing_steps.dart';
+import 'package:simplex_blender/src/ui/blending/transfer_rate_text.dart';
 import 'package:simplex_blender/src/ui/shell/tour_targets.dart';
 
 import '../../support/memory_storage.dart';
@@ -57,6 +58,13 @@ class _Harness {
     );
     return _Harness(app, blend);
   }
+
+  ThermalStep get profiledTransferStep => _steps(blend)
+      .map((step) => step.thermal!)
+      .firstWhere(
+        (thermal) =>
+            thermal.rateSource == 'booster' && thermal.samples.isNotEmpty,
+      );
 }
 
 Future<void> _pump(
@@ -236,4 +244,23 @@ void main() {
 
     expect(targets.keyFor('mixing-steps-section').currentContext, isNotNull);
   });
+
+  testWidgets(
+    'recipe details show the formatted transfer rate for a profiled step',
+    (tester) async {
+      final harness = _Harness.create();
+      await _pump(tester, harness);
+      final step = harness.profiledTransferStep;
+      expect(
+        find.text(
+          formatTransferRate(
+            rateBarPerMin: step.rateBarPerMin,
+            durationMinutes: step.durationMinutes,
+            samples: step.samples,
+          ),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 }

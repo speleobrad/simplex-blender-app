@@ -225,6 +225,34 @@ Map<String, Object?> scheduleSafeThermalProtocol({
   return _finishSchedule(simulation, unsafe: true);
 }
 
+/// JS `scheduleCandidateProtocol`. A profile the source cannot supply makes the
+/// candidate unsafe instead of aborting the search.
+Map<String, Object?> scheduleCandidateProtocol({
+  required List<ProtocolStep> protocolSteps,
+  required ThermalInput thermal,
+  required Map<String, Object?> cylinder,
+  required PhysicsInput physics,
+  BlendSettings? settings,
+}) {
+  try {
+    return scheduleSafeThermalProtocol(
+      protocolSteps: protocolSteps,
+      thermal: thermal,
+      cylinder: cylinder,
+      physics: physics,
+      settings: settings,
+    );
+  } on TransferProfileException {
+    // Catch by type only. Other errors propagate, as in JS.
+    return <String, Object?>{
+      'protocolSteps': null,
+      'automaticWaits': <Object?>[],
+      'simulation': null,
+      'unsafe': true,
+    };
+  }
+}
+
 /// JS `finish` inside `scheduleSafeThermalProtocol`. Strips the scheduling-only
 /// fields and builds the JS result object.
 ///
