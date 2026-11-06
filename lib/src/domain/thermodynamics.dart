@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:simplex_blender/src/domain/materials.dart';
 import 'package:simplex_blender/src/domain/physics.dart';
 
+part 'thermodynamics/transfer_profile.dart';
+
 const double atmosphericPressureBar = 1.01325;
 const double gaugePressureOffsetBar = 1;
 const double clearanceRatio = 0.05;
