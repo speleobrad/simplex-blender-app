@@ -330,9 +330,8 @@ Map<String, Object?> _solveBlendWithoutSalvage(
     useVdw,
   );
   final postSalvagePressure = salvagedMoles > 0
-      ? _pressureFromMoles(
-          initialMoles - salvagedMoles,
-          volumeL,
+      ? calcPressure(
+          (initialMoles - salvagedMoles) / volumeL,
           initialOxygenPercent,
           initialHeliumPercent,
           temperatureC,

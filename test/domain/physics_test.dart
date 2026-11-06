@@ -32,5 +32,35 @@ void main() {
         expect(calcZFromDensity(200, 3, 20, false), 1);
       },
     );
+
+    test('inventoryPressure matches calcPressure at the inventory molar density', () {
+      const volumeL = 10.0;
+      const moles = 4.0;
+      const oxygenPercent = 21.0;
+      final expected = calcPressure(moles / volumeL, oxygenPercent, 0, 20, true);
+      final actual = inventoryPressure(
+        moles: moles,
+        volumeL: volumeL,
+        oxygenMoles: moles * oxygenPercent / 100,
+        heliumMoles: 0,
+        temperatureC: 20,
+        useVdw: true,
+      );
+      expect(actual, closeTo(expected, 1e-9));
+    });
+
+    test('inventoryPressure is zero for an empty inventory', () {
+      expect(
+        inventoryPressure(
+          moles: 0,
+          volumeL: 10,
+          oxygenMoles: 0,
+          heliumMoles: 0,
+          temperatureC: 20,
+          useVdw: true,
+        ),
+        0,
+      );
+    });
   });
 }

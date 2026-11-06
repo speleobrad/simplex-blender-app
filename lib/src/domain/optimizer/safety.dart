@@ -541,41 +541,6 @@ GasMixPercent _mixForStep(ProtocolStep step, ThermalStep? state) {
   );
 }
 
-double _pressureFromMoles(
-  double moles,
-  double volumeL,
-  double oxygenPercent,
-  double heliumPercent,
-  double temperatureC,
-  bool useVdw,
-) {
-  return calcPressure(
-    moles / volumeL,
-    oxygenPercent,
-    heliumPercent,
-    temperatureC,
-    useVdw,
-  );
-}
-
-double _inventoryPressure(
-  double moles,
-  double volumeL,
-  double oxygenMoles,
-  double heliumMoles,
-  double temperatureC,
-  bool useVdw,
-) {
-  return _pressureFromMoles(
-    moles,
-    volumeL,
-    moles > 0 ? oxygenMoles / moles * 100 : 0.0,
-    moles > 0 ? heliumMoles / moles * 100 : 0.0,
-    temperatureC,
-    useVdw,
-  );
-}
-
 /// JS line 339 `splitTransferAtSafeHotEndpoint`. Builds the two transfer
 /// stages (and the automatic wait between them) for the step at
 /// [unsafeIndex], choosing the largest first-stage fraction that keeps the
@@ -736,13 +701,13 @@ _SafeTransferSplit? _splitTransferAtSafeHotEndpoint({
     if (!sourceVolumeL.isFinite || !moles.isFinite) {
       return null;
     }
-    return _inventoryPressure(
-      moles,
-      sourceVolumeL,
-      moles * sourceOxygenPercent / 100,
-      moles * sourceHeliumPercent / 100,
-      ambientTemperatureC,
-      useVdw,
+    return inventoryPressure(
+      moles: moles,
+      volumeL: sourceVolumeL,
+      oxygenMoles: moles * sourceOxygenPercent / 100,
+      heliumMoles: moles * sourceHeliumPercent / 100,
+      temperatureC: ambientTemperatureC,
+      useVdw: useVdw,
     );
   }
 
@@ -753,13 +718,13 @@ _SafeTransferSplit? _splitTransferAtSafeHotEndpoint({
     final firstSourceMoles = startMoles == null
         ? null
         : startMoles - firstConsumedMoles;
-    final firstReceiverPressureBar = _inventoryPressure(
-      stage1.moles,
-      volumeL,
-      stage1.oxygenMoles,
-      stage1.heliumMoles,
-      ambientTemperatureC,
-      useVdw,
+    final firstReceiverPressureBar = inventoryPressure(
+      moles: stage1.moles,
+      volumeL: volumeL,
+      oxygenMoles: stage1.oxygenMoles,
+      heliumMoles: stage1.heliumMoles,
+      temperatureC: ambientTemperatureC,
+      useVdw: useVdw,
     );
     final mix = GasMixPercent(
       oxygenPercent: stage1.oxygenPercent,
