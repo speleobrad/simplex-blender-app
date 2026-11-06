@@ -803,7 +803,11 @@ CompressorFillRate calculateCompressorFillRate({
       inletFlowLPerMin /
       (zInlet * gasConstant * inletTemperatureK);
   final fillRateBarPerMin =
-      molesPerMin * zReceiver * gasConstant * receiverTemperatureK / receiverVolumeL;
+      molesPerMin *
+      zReceiver *
+      gasConstant *
+      receiverTemperatureK /
+      receiverVolumeL;
 
   return CompressorFillRate(
     fillRateBarPerMin: fillRateBarPerMin,
