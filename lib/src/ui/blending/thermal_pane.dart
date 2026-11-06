@@ -121,6 +121,7 @@ ThermalProtocolStep _thermalStepOf(ProtocolStep step) {
                 ThermalInputSample(
                   elapsedMinutes: sample.elapsedMinutes,
                   pressureBar: sample.pressureBar,
+                  projectedPressureBar: sample.projectedPressureBar,
                   temperatureC: sample.temperatureC,
                   rateBarPerMin: sample.rateBarPerMin,
                 ),

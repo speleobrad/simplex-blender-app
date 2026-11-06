@@ -17,16 +17,22 @@ const double _chartMarginTop = 28;
 // ---------------------------------------------------------------------------
 
 /// One raw minute sample supplied by the optimizer (`thermal.samples[i]`).
+///
+/// [projectedPressureBar] is the temperature-adjusted pressure the thermal
+/// trajectory follows; the chart prefers it and falls back to the reference
+/// [pressureBar] when it is absent.
 class ThermalInputSample {
   const ThermalInputSample({
     this.elapsedMinutes,
     this.pressureBar,
+    this.projectedPressureBar,
     this.temperatureC,
     this.rateBarPerMin,
   });
 
   final double? elapsedMinutes;
   final double? pressureBar;
+  final double? projectedPressureBar;
   final double? temperatureC;
   final double? rateBarPerMin;
 }
@@ -510,7 +516,9 @@ ThermalSeries buildThermalSeries(
     final mappedSamples = <ThermalSeriesSample>[];
     for (final sample in inputSamples) {
       final sampleElapsed = _finiteOrNull(sample.elapsedMinutes);
-      final samplePressure = _finiteOrNull(sample.pressureBar);
+      final samplePressure =
+          _finiteOrNull(sample.projectedPressureBar) ??
+          _finiteOrNull(sample.pressureBar);
       final sampleTemperature = _finiteOrNull(sample.temperatureC);
       if (sampleElapsed == null ||
           samplePressure == null ||
