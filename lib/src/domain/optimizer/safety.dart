@@ -955,10 +955,10 @@ _SafeTransferSplit? _splitTransferAtSafeHotEndpoint({
     );
   }
   final hotEndpointBar = firstStageState.pressureAtTransferEndHotBar;
-  final targetTemperatureC =
-      thermal.targetMediumTemperatureC ??
-      thermal.targetTemperatureC ??
-      ambientTemperatureC;
+  final targetTemperatureC = _finiteOr(
+    thermal.targetMediumTemperatureC,
+    _finiteOr(thermal.targetTemperatureC, ambientTemperatureC),
+  );
   final tauMinutes = coolingTimeConstantMinutes(
     thermal.tankMaterial,
     thermal.coolingMedium,

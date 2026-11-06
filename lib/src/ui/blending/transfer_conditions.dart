@@ -81,7 +81,7 @@ class _TransferConditionsState extends State<TransferConditions> {
     }
     final inputs = widget.controller.inputs;
     if (_sameAsAmbient &&
-        inputs.inletTemperatureC != inputs.ambientTemperatureC) {
+        !_sameNumber(inputs.inletTemperatureC, inputs.ambientTemperatureC)) {
       widget.controller.setInputs(
         inputs.copyWith(inletTemperatureC: inputs.ambientTemperatureC),
       );
@@ -115,6 +115,11 @@ class _TransferConditionsState extends State<TransferConditions> {
         inputs.copyWith(inletTemperatureC: inputs.ambientTemperatureC),
       );
     }
+  }
+
+  /// NaN equals NaN here, so a blank ambient does not keep the listener looping.
+  static bool _sameNumber(double left, double right) {
+    return left == right || (left.isNaN && right.isNaN);
   }
 
   /// JS `numberValue` + `canonicalNumberValue`: blank or malformed text gives

@@ -1888,6 +1888,42 @@ void main() {
     },
   );
 
+  test('salvage boost step without a receiver volume reports no rate instead of NaN', () {
+    final simulation = _thermal(
+      steps: [
+        ProtocolStep(
+          type: 'salvage',
+          stage: 'boost',
+          operation: 'Salvage Boost',
+          receiverStartPressureBar: 40,
+          receiverEndPressureBar: 90,
+          receiverStartMix: _mix(32, 0),
+          resultingPressureBar: 80,
+          resultingMix: _mix(21, 35),
+          sourceOxygenPercent: 21,
+          sourceHeliumPercent: 35,
+        ),
+      ],
+      cylinder: const CylinderInput(initialPressureBar: 100, volumeL: 12),
+      physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
+      thermal: const ThermalInput(
+        tankMaterial: 'steel',
+        coolingMedium: 'air',
+        ambientTemperatureC: 20,
+        inletTemperatureC: 20,
+        waitMode: 'minutes',
+        waitMinutes: 0,
+        targetTemperatureC: 25,
+      ),
+      booster: const BoosterSettings(otherBoostBpm: 60, cylinderVolumeCm3: 500),
+    );
+
+    final thermal = _stepThermal(simulation, 0);
+    expect(thermal.rateSource, equals('salvage-booster'));
+    expect(thermal.rateBarPerMin, isNull);
+    expect(thermal.durationMinutes, equals(0));
+  });
+
   test('salvage booster rate is the booster fill rate at the transfer midpoint pressures', () {
     final simulation = _thermal(
       steps: [

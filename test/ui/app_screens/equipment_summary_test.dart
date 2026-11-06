@@ -50,6 +50,19 @@ const _matchingBooster = SettingsBooster(
   compressorTemperatureModifierC: 5,
 );
 
+/// Storage whose writes fail on demand, to simulate a full or disabled store.
+class _WriteSwitchStorage extends MemoryStorage {
+  bool failWrites = false;
+
+  @override
+  void setItem(String key, String value) {
+    if (failWrites) {
+      throw StateError('storage is full');
+    }
+    super.setItem(key, value);
+  }
+}
+
 Settings _settings({SettingsBooster booster = _matchingBooster}) =>
     DEFAULT_SETTINGS.copyWith(
       compressorPresets: const [_bauer],
@@ -172,6 +185,68 @@ void main() {
 
       expect(app.settings.booster.compressorInletFlowLPerMin, 100);
       expect(app.settings.booster.maxCompressorPressureBar, 232);
+      expect(notified, 1);
+    },
+  );
+
+  testWidgets(
+    'a selection that fails to save shows the error and does not notify',
+    (tester) async {
+      final storage = _WriteSwitchStorage();
+      final app = AppController(storage: storage, analytics: _NoopAnalytics());
+      expect(
+        app.applySettings(
+          _settings(
+            booster: _matchingBooster.copyWith(compressorInletFlowLPerMin: 125),
+          ),
+        ),
+        isEmpty,
+      );
+      storage.failWrites = true;
+      var notified = 0;
+      await _pump(tester, app, onEquipmentChanged: () => notified++);
+
+      await tester.tap(find.byType(DropdownButton<String>).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bauer Junior').last);
+      await tester.pumpAndSettle();
+
+      expect(app.settings.booster.compressorInletFlowLPerMin, 125);
+      expect(notified, 0);
+      expect(find.text(settingsSaveFailureMessage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a later selection that saves clears the error and notifies once',
+    (tester) async {
+      final storage = _WriteSwitchStorage();
+      final app = AppController(storage: storage, analytics: _NoopAnalytics());
+      expect(
+        app.applySettings(
+          _settings(
+            booster: _matchingBooster.copyWith(compressorInletFlowLPerMin: 125),
+          ),
+        ),
+        isEmpty,
+      );
+      storage.failWrites = true;
+      var notified = 0;
+      await _pump(tester, app, onEquipmentChanged: () => notified++);
+
+      await tester.tap(find.byType(DropdownButton<String>).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bauer Junior').last);
+      await tester.pumpAndSettle();
+      expect(find.text(settingsSaveFailureMessage), findsOneWidget);
+
+      storage.failWrites = false;
+      await tester.tap(find.byType(DropdownButton<String>).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bauer Junior').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text(settingsSaveFailureMessage), findsNothing);
       expect(notified, 1);
     },
   );
