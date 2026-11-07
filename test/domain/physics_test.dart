@@ -21,6 +21,33 @@ void main() {
       expect(calcZ(0, 18, 45, 20, true), 1);
     });
 
+    test('VDW density round-trips through pressure over the valid grid', () {
+      // Silent-failure guard: calcMolarDensity clamps and breaks out of its
+      // Newton loop without signalling. A solved density that does not
+      // reproduce the requested pressure is the only observable symptom.
+      for (var oxygen = 0.0; oxygen <= 100; oxygen += 10) {
+        for (var helium = 0.0; helium <= 100 - oxygen; helium += 10) {
+          for (var temperature = -10.0; temperature <= 40; temperature += 10) {
+            for (final pressure in [0.5, 5.0, 50.0, 200.0, 400.0]) {
+              final density = calcMolarDensity(
+                pressure,
+                oxygen,
+                helium,
+                temperature,
+                true,
+              );
+              expect(
+                calcPressure(density, oxygen, helium, temperature, true),
+                closeTo(pressure, pressure * 1e-9),
+                reason:
+                    'O2 $oxygen% He $helium% at ${temperature}C, $pressure bar',
+              );
+            }
+          }
+        }
+      }
+    });
+
     test(
       'compressibility uses an already calculated density with the same model',
       () {

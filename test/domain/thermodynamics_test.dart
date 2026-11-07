@@ -2220,4 +2220,61 @@ void main() {
       );
     },
   );
+
+  test('hot endpoint flags non-convergence when the 8-iteration solve exhausts its budget', () {
+    final result = _compare(
+      steps: [
+        ProtocolStep(
+          type: 'add',
+          method: 'decant',
+          operation: 'decant',
+          receiverEndPressureBar: 120,
+          resultingPressureBar: 120,
+          resultingMix: _mix(21, 0),
+          sourceOxygenPercent: 21,
+          sourceHeliumPercent: 0,
+          sourcePressureBar: 300,
+        ),
+      ],
+      cylinder: const CylinderInput(initialPressureBar: 0, volumeL: 12),
+      physics: const PhysicsInput(model: 'vdw', temperatureC: -5),
+      thermal: const ThermalInput(
+        tankMaterial: 'steel',
+        coolingMedium: 'air',
+        ambientTemperatureC: 30,
+        inletTemperatureC: 30,
+      ),
+    );
+    expect(result.protocolSteps.single.thermal?.hotEndpointConverged, isFalse);
+  });
+
+  test(
+    'hot endpoint flags convergence for the same fill at a cooler ambient',
+    () {
+      final result = _compare(
+        steps: [
+          ProtocolStep(
+            type: 'add',
+            method: 'decant',
+            operation: 'decant',
+            receiverEndPressureBar: 120,
+            resultingPressureBar: 120,
+            resultingMix: _mix(21, 0),
+            sourceOxygenPercent: 21,
+            sourceHeliumPercent: 0,
+            sourcePressureBar: 300,
+          ),
+        ],
+        cylinder: const CylinderInput(initialPressureBar: 0, volumeL: 12),
+        physics: const PhysicsInput(model: 'vdw', temperatureC: -5),
+        thermal: const ThermalInput(
+          tankMaterial: 'steel',
+          coolingMedium: 'air',
+          ambientTemperatureC: 0,
+          inletTemperatureC: 0,
+        ),
+      );
+      expect(result.protocolSteps.single.thermal?.hotEndpointConverged, isTrue);
+    },
+  );
 }

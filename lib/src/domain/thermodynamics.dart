@@ -269,6 +269,7 @@ class ThermalStep {
     this.configuredWaitMinutes,
     this.automaticWaitMinutes,
     this.measuredWaitMinutes,
+    this.hotEndpointConverged,
   });
 
   final String rateSource;
@@ -298,6 +299,10 @@ class ThermalStep {
   final double? configuredWaitMinutes;
   final double? automaticWaitMinutes;
   final double? measuredWaitMinutes;
+
+  /// Null when no hot endpoint was solved; false when the fixed-point solve
+  /// exhausted its iteration budget and kept the last iterate.
+  final bool? hotEndpointConverged;
 }
 
 /// JS protocol step. Passed through to output as `{...step, thermal}`.
@@ -2063,6 +2068,7 @@ ThermalCompareResult simulateCompareProtocol({
         _finiteOrNull(step.pressureAtTransferEndReferenceBar) == null;
 
     final iterations = solveHotEndpoint ? 8 : 1;
+    bool? hotEndpointConverged;
     for (var iteration = 0; iteration < iterations; iteration++) {
       final ProtocolStep transferStep;
       if (step.type == 'add') {
@@ -2136,6 +2142,7 @@ ThermalCompareResult simulateCompareProtocol({
             )
           : transferEndPressureBar;
       if (!solveHotEndpoint || !hasTransferProfile) break;
+      hotEndpointConverged = false;
       final solvedReferencePressureBar = calculatePressureAtTemperature(
         pressureBar: requestedTransferEndPressureBar,
         oxygenPercent: receiverMix.oxygenPercent,
@@ -2159,6 +2166,7 @@ ThermalCompareResult simulateCompareProtocol({
         upperBound,
       );
       if ((nextReferencePressureBar - transferEndPressureBar).abs() < 1e-7) {
+        hotEndpointConverged = true;
         break;
       }
       transferEndPressureBar = nextReferencePressureBar;
@@ -2241,6 +2249,7 @@ ThermalCompareResult simulateCompareProtocol({
       pressureAtTransferEndBar: pressureAtTransferEndHotBar,
       pressureAtTransferEndHotBar: pressureAtTransferEndHotBar,
       pressureAfterWaitBar: pressureAfterWaitBar,
+      hotEndpointConverged: hotEndpointConverged,
       samples: _buildThermalStepSamples(
         currentPressureBar: currentPressureBar,
         currentTemperatureC: currentTemperatureC,
