@@ -23,7 +23,7 @@ Analytics sink, closed event set, user opt-out, and how to add events. For suppl
 
 - Storage: key `analyticsStorageKey` (`simplex-gas-remixer-analytics`), value `{"enabled":bool}`. Defined in `lib/src/data/analytics_storage.dart` as `loadAnalyticsEnabled` and `saveAnalyticsEnabled`.
 - Default is on. A missing, unreadable, or malformed value loads as `true`.
-- User-controlled. The switch "Send anonymous usage analytics" in `lib/src/ui/settings/settings_screen.dart` calls `AppController.setAnalyticsEnabled(enabled:)`, which sets the gate's `enabled` and saves the choice.
+- User-controlled. The switch "Send anonymous usage analytics" in `lib/src/ui/settings/sections/general.dart` calls `AppController.setAnalyticsEnabled(enabled:)`, which sets the gate's `enabled` and saves the choice.
 - `AppController.factoryReset` calls `resetApplicationData(_storage)`, which clears all stored keys, then tracks `factory_reset` and sets the gate to `enabled = true` in memory. The event is tracked before re-enable, so a reset made while opted out sends no `factory_reset`.
 - Tests: `test/controllers/analytics_gate_test.dart`.
 
@@ -56,7 +56,7 @@ Call sites:
 - `screen_view`: `AppController.setPrimaryScreen`, only when the screen changes. Screen ids map via `AppController._analyticsScreen`.
 - `blend_calculated`: `BlendController._trackCalculation`, mode `optimize`, outcomes `invalidInput`, `feasible`, `infeasible`. `WhatIfController._track`, mode `whatIf`, outcomes `feasible`, `invalidInput`, `infeasible`.
 - `AnalyticsBlendMode.compare` is defined, but no code in `lib/` sends it.
-- `preset_imported`: `AppController.applyPresetImport`, which takes `category` and `source` from `lib/src/ui/settings/settings_screen.dart` (`_importAnalyticsCategory`, `_importSource`).
+- `preset_imported`: `AppController.applyPresetImport`, which takes `category` and `source` from `lib/src/ui/settings/sections/preset_import.dart` (`_importAnalyticsCategory`, `_importSource`).
 - `factory_reset`: `AppController.factoryReset`, after a confirmed reset.
 
 ## Privacy rule

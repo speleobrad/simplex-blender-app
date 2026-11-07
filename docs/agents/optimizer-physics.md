@@ -40,7 +40,7 @@ Files in the order a request flows through them. Helper files are called from th
 - `lib/src/domain/salvage.dart`: salvage economics and selection. `selectSalvageVariant`, `salvageTransferMoles`, `applyDrawToBank`, `isSalvageReceiver`, `SalvageVariant`, `SalvageBaseline`, `ReceiverCandidate`.
 - `lib/src/domain/simplex.dart`: `solveTwoPhaseSimplex`, port of `js/simplex.js`.
 - `lib/src/domain/leftover_attractiveness.dart`: `leftoverAttractiveness`, `leftoverReachability`, `standardTargets`.
-- `lib/src/domain/compare_recipe.dart`: compare-recipe model, row types, methods, validation.
+- `lib/src/domain/compare_recipe.dart`: compare-recipe model, row types, methods, validation. The library root holds the constants and options; the rest is in `part` files under `lib/src/domain/compare_recipe/`.
 - `lib/src/domain/pressure_limits.dart`: `getCylinderPressureLimit`, pressure warnings. Port of `js/pressure-limits.js`.
 - `lib/src/domain/js_number.dart`: `jsNumberString` (mirrors JS `String(n)`), `parseJsNumber` (mirrors JS `Number(text)`).
 

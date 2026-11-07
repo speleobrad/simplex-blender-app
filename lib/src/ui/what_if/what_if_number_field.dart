@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:simplex_blender/src/domain/finite_number.dart';
+import 'package:simplex_blender/src/ui/shared/focus_loss_node.dart';
+import 'package:simplex_blender/src/ui/shared/number_input.dart';
 
 /// Numeric text field that commits its value on submit or focus loss.
 ///
@@ -29,39 +32,26 @@ class _WhatIfNumberFieldState extends State<WhatIfNumberField> {
   late final TextEditingController _text = TextEditingController(
     text: widget.displayText,
   );
-  final FocusNode _focus = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    _focus.addListener(_handleFocusChange);
-  }
+  late final FocusLossNode _focus = FocusLossNode(onFocusLost: _commit);
 
   @override
   void didUpdateWidget(covariant WhatIfNumberField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_focus.hasFocus && _text.text != widget.displayText) {
+    if (!_focus.focusNode.hasFocus && _text.text != widget.displayText) {
       _text.text = widget.displayText;
     }
   }
 
   @override
   void dispose() {
-    _focus.removeListener(_handleFocusChange);
     _focus.dispose();
     _text.dispose();
     super.dispose();
   }
 
-  void _handleFocusChange() {
-    if (!_focus.hasFocus) {
-      _commit();
-    }
-  }
-
   void _commit() {
-    final parsed = double.tryParse(_text.text.trim());
-    if (parsed == null || !parsed.isFinite) {
+    final parsed = parseFiniteNumber(_text.text);
+    if (parsed == null) {
       _text.text = widget.displayText;
       return;
     }
@@ -72,11 +62,8 @@ class _WhatIfNumberFieldState extends State<WhatIfNumberField> {
   Widget build(BuildContext context) {
     return TextField(
       controller: _text,
-      focusNode: _focus,
-      keyboardType: const TextInputType.numberWithOptions(
-        decimal: true,
-        signed: true,
-      ),
+      focusNode: _focus.focusNode,
+      keyboardType: signedDecimalKeyboard,
       onSubmitted: (_) => _commit(),
       decoration: InputDecoration(
         labelText: widget.label,

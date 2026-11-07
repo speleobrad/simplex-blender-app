@@ -48,8 +48,8 @@ Folders under `lib/src/ui/`:
 | `what_if/` | What-if screen: scenario rows, start fields, results, number and select fields, formatting |
 | `inventory/` | Inventory screen: supply bank list and equipment summary |
 | `results/` | Shared result widgets: `ternary_diagram.dart`, `thermal_charts.dart`, `water_pressure_pane.dart` |
-| `shared/` | `compare_recipe_editor.dart`, used by Blending and What-if |
-| `settings/` | `settings_screen.dart`: settings editor and factory reset |
+| `shared/` | `compare_recipe_editor.dart`, used by Blending and What-if. `number_input.dart`: `signedDecimalKeyboard`. `focus_loss_node.dart`: `FocusLossNode`, a `FocusNode` that calls back when focus is lost |
+| `settings/` | `settings_screen.dart`: settings editor, save/cancel, factory reset. `sections/*.dart` are `part` files of it: one per category (general, costs, gas presets, cylinder presets, equipment) as extensions on the state, and preset import as a mixin that owns the import state |
 | `about/` | `about_screen.dart`: app info, links, license page |
 | `onboarding/` | `onboarding_tour.dart`: eight-step spotlight tour |
 

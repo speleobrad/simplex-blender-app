@@ -66,17 +66,14 @@ List<CylinderPressureWarning> _warningsOf(Map<String, Object?> result) {
 
 bool _finite(double? value) => value != null && value.isFinite;
 
-String _pressureText(double? value, String units) {
-  return _finite(value) ? formatUnitValue(value!, 'pressureBar', units) : '—';
-}
+String _pressureText(double? value, String units) =>
+    formatUnitValueOrDash(value, 'pressureBar', units);
 
-String _temperatureText(double? value, String units) {
-  return _finite(value) ? formatUnitValue(value!, 'temperatureC', units) : '—';
-}
+String _temperatureText(double? value, String units) =>
+    formatUnitValueOrDash(value, 'temperatureC', units);
 
-String _volumeText(double? value, String units) {
-  return _finite(value) ? formatUnitValue(value!, 'volumeL', units, 0) : '—';
-}
+String _volumeText(double? value, String units) =>
+    formatUnitValueOrDash(value, 'volumeL', units, 0);
 
 String _fixedText(double? value, int digits) {
   return _finite(value) ? value!.toStringAsFixed(digits) : '—';

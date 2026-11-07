@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:simplex_blender/src/controllers/app_controller.dart';
 import 'package:simplex_blender/src/controllers/blend_controller.dart';
+import 'package:simplex_blender/src/domain/finite_number.dart';
 import 'package:simplex_blender/src/domain/interim_measurements.dart';
 import 'package:simplex_blender/src/domain/pressure_limits.dart';
 import 'package:simplex_blender/src/domain/preset_validation.dart';
@@ -297,21 +298,15 @@ class _SalvageDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    String pressure(double? value) => value != null && value.isFinite
-        ? formatUnitValue(value, 'pressureBar', units)
-        : '—';
+    String pressure(double? value) =>
+        formatUnitValueOrDash(value, 'pressureBar', units);
     String mix(GasMixPercent? value) => value == null
         ? '—'
         : 'Tx ${_toFixed(value.oxygenPercent, 1)}/${_toFixed(value.heliumPercent, 1)}';
     final moved = step.movedHeliumLitres;
     final rows = <(String, String)>[
       ('Receiver', step.receiverBankName ?? '—'),
-      (
-        'Helium moved',
-        moved != null && moved.isFinite
-            ? formatUnitValue(moved, 'volumeL', units, 0)
-            : '—',
-      ),
+      ('Helium moved', formatUnitValueOrDash(moved, 'volumeL', units, 0)),
       (
         'Receiver before',
         '${pressure(step.receiverStartPressureBar)} · ${mix(step.receiverStartMix)}',
@@ -371,12 +366,10 @@ class _ThermalDetails extends StatelessWidget {
         ((measuredPressure != null && measuredPressure.isFinite) ||
             (measuredTemperature != null && measuredTemperature.isFinite));
 
-    String pressure(double? value) => value != null && value.isFinite
-        ? formatUnitValue(value, 'pressureBar', units)
-        : '—';
-    String temperature(double? value) => value != null && value.isFinite
-        ? formatUnitValue(value, 'temperatureC', units)
-        : '—';
+    String pressure(double? value) =>
+        formatUnitValueOrDash(value, 'pressureBar', units);
+    String temperature(double? value) =>
+        formatUnitValueOrDash(value, 'temperatureC', units);
 
     final addedWait = _doubleOrNull(
       step.automaticWaitMetadata?['addedWaitMinutes'],
@@ -795,12 +788,8 @@ class _InterimControlState extends State<_InterimControl> {
     double minBar,
     double maxBar,
   ) {
-    final text = field.text.trim();
-    if (text.isEmpty) {
-      return null;
-    }
-    final value = double.tryParse(text);
-    if (value == null || !value.isFinite) {
+    final value = parseFiniteNumber(field.text);
+    if (value == null) {
       return null;
     }
     final internal = convertFromDisplay(value, quantity, widget.units);

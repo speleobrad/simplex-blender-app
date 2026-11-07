@@ -6,6 +6,7 @@ import 'package:simplex_blender/src/domain/gas_input.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 import 'package:simplex_blender/src/domain/units.dart';
+import 'package:simplex_blender/src/ui/shared/number_input.dart';
 import 'package:simplex_blender/src/ui/shell/tour_targets.dart';
 
 const String _customPreset = 'custom';
@@ -609,10 +610,7 @@ class _NumberFieldState extends State<_NumberField> {
     final field = TextField(
       controller: _text,
       focusNode: _focusNode,
-      keyboardType: const TextInputType.numberWithOptions(
-        decimal: true,
-        signed: true,
-      ),
+      keyboardType: signedDecimalKeyboard,
       inputFormatters: widget.numeric
           ? <TextInputFormatter>[
               FilteringTextInputFormatter.allow(_numericCharacters),

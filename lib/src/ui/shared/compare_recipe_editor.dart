@@ -4,6 +4,8 @@ import '../../domain/bank.dart';
 import '../../domain/compare_recipe.dart';
 import '../../domain/js_number.dart';
 import '../../domain/units.dart';
+import 'focus_loss_node.dart';
+import 'number_input.dart';
 
 const String _compressorAirLabel = 'Compressor Air (infinite)';
 const String _compressorAirDetails =
@@ -646,13 +648,12 @@ class _CompareNumberField extends StatefulWidget {
 
 class _CompareNumberFieldState extends State<_CompareNumberField> {
   late final TextEditingController _controller;
-  final FocusNode _focusNode = FocusNode();
+  late final FocusLossNode _focus = FocusLossNode(onFocusLost: _syncText);
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.text);
-    _focusNode.addListener(_onFocusChanged);
   }
 
   @override
@@ -663,20 +664,13 @@ class _CompareNumberFieldState extends State<_CompareNumberField> {
 
   @override
   void dispose() {
-    _focusNode.removeListener(_onFocusChanged);
-    _focusNode.dispose();
+    _focus.dispose();
     _controller.dispose();
     super.dispose();
   }
 
-  void _onFocusChanged() {
-    if (!_focusNode.hasFocus) {
-      _syncText();
-    }
-  }
-
   void _syncText() {
-    if (_focusNode.hasFocus) {
+    if (_focus.focusNode.hasFocus) {
       return;
     }
     if (_controller.text != widget.text) {
@@ -689,11 +683,8 @@ class _CompareNumberFieldState extends State<_CompareNumberField> {
     return TextField(
       key: widget.textFieldKey,
       controller: _controller,
-      focusNode: _focusNode,
-      keyboardType: const TextInputType.numberWithOptions(
-        decimal: true,
-        signed: true,
-      ),
+      focusNode: _focus.focusNode,
+      keyboardType: signedDecimalKeyboard,
       onChanged: widget.onChanged,
       decoration: InputDecoration(
         labelText: widget.labelText,

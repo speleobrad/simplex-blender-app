@@ -124,10 +124,6 @@ String materialLabel(String material, String? units) {
   return definition.label;
 }
 
-/// JS alias of [unitLabel].
-String getUnitLabel(String quantity, String? units) =>
-    unitLabel(quantity, units);
-
 double convertToDisplay(double value, String quantity, String? units) =>
     _variant(quantity, units)?.toDisplay(value) ?? value;
 
@@ -144,8 +140,18 @@ String formatUnitValue(
       '${unitLabel(quantity, units)}';
 }
 
-double displayStep(double value, String quantity, String? units) =>
-    convertToDisplay(value, quantity, units);
+/// [formatUnitValue], or an em dash when [value] is missing or not finite.
+String formatUnitValueOrDash(
+  double? value,
+  String quantity,
+  String? units, [
+  int digits = 1,
+]) {
+  if (value == null || !value.isFinite) {
+    return '—';
+  }
+  return formatUnitValue(value, quantity, units, digits);
+}
 
 String formatInputValue(
   double value,

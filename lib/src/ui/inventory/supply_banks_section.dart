@@ -6,11 +6,14 @@ import 'package:simplex_blender/src/controllers/blend_controller.dart';
 import 'package:simplex_blender/src/domain/bank.dart';
 import 'package:simplex_blender/src/domain/bank_price_format.dart';
 import 'package:simplex_blender/src/domain/bank_pricing.dart';
+import 'package:simplex_blender/src/domain/finite_number.dart';
 import 'package:simplex_blender/src/domain/js_number.dart';
 import 'package:simplex_blender/src/domain/pure_prices.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 import 'package:simplex_blender/src/domain/units.dart';
+import 'package:simplex_blender/src/ui/shared/focus_loss_node.dart';
+import 'package:simplex_blender/src/ui/shared/number_input.dart';
 
 /// JS `PRICE_BASIS_PER_VOLUME`.
 const String priceBasisPerVolume = 'per-volume';
@@ -584,7 +587,7 @@ class _SupplyBanksSectionState extends State<SupplyBanksSection> {
   /// Parses a numeric field edit. Text that is not a finite number is
   /// rejected with a bank-prefixed message instead of being dropped silently.
   double? _parseEdit(Bank bank, String text, String label) {
-    final value = _parseFinite(text);
+    final value = parseFiniteNumber(text);
     if (value == null) {
       _app.rejectBankEdit(bank, 'Enter a number for the $label.');
     }
@@ -733,14 +736,6 @@ class _SupplyBanksSectionState extends State<SupplyBanksSection> {
   }
 }
 
-double? _parseFinite(String text) {
-  final value = double.tryParse(text.trim());
-  if (value == null || !value.isFinite) {
-    return null;
-  }
-  return value;
-}
-
 /// A text field that commits on focus loss or submit (JS `change`), and
 /// restores its stored display value after a commit that did not change it.
 class _EditableText extends StatefulWidget {
@@ -768,34 +763,27 @@ class _EditableTextState extends State<_EditableText> {
   late final TextEditingController _controller = TextEditingController(
     text: widget.value,
   );
-  late final FocusNode _focusNode = FocusNode()..addListener(_onFocusChange);
+  late final FocusLossNode _focus = FocusLossNode(onFocusLost: _commit);
 
   @override
   void didUpdateWidget(_EditableText oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.value != widget.value && !_focusNode.hasFocus) {
+    if (oldWidget.value != widget.value && !_focus.focusNode.hasFocus) {
       _controller.text = widget.value;
     }
   }
 
   @override
   void dispose() {
-    _focusNode.removeListener(_onFocusChange);
-    _focusNode.dispose();
+    _focus.dispose();
     _controller.dispose();
     super.dispose();
-  }
-
-  void _onFocusChange() {
-    if (!_focusNode.hasFocus) {
-      _commit();
-    }
   }
 
   void _commit() {
     widget.onCommit(_controller.text);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _focusNode.hasFocus) {
+      if (!mounted || _focus.focusNode.hasFocus) {
         return;
       }
       if (_controller.text != widget.value) {
@@ -813,14 +801,11 @@ class _EditableTextState extends State<_EditableText> {
         width: widget.width,
         child: TextField(
           controller: _controller,
-          focusNode: _focusNode,
+          focusNode: _focus.focusNode,
           keyboardType: widget.numeric
-              ? const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                )
+              ? signedDecimalKeyboard
               : TextInputType.text,
-          onSubmitted: (_) => _focusNode.unfocus(),
+          onSubmitted: (_) => _focus.focusNode.unfocus(),
           decoration: InputDecoration(
             isDense: true,
             border: const OutlineInputBorder(),
