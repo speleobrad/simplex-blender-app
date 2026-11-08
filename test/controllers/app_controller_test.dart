@@ -8,8 +8,8 @@ import 'package:simplex_blender/src/data/key_value_storage.dart';
 import 'package:simplex_blender/src/data/settings_storage.dart';
 import 'package:simplex_blender/src/domain/bank.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
-import 'package:simplex_blender/src/domain/settings_json.dart';
 
+import '../support/legacy_cylinder_settings.dart';
 import '../support/memory_storage.dart';
 
 typedef _Call = ({String event, Map<String, Object> props});
@@ -40,29 +40,6 @@ class _FailingWriteStorage implements KeyValueStorage {
   @override
   void clear() {}
 }
-
-/// Stored settings whose two cylinder presets predate the dimension keys.
-String _legacyCylinderSettingsJson() => jsonEncode(<String, Object?>{
-  ...settingsToJson(DEFAULT_SETTINGS),
-  'cylinderPresets': <Object?>[
-    <String, Object?>{
-      'name': 'Alu 5.5',
-      'volumeL': 5.5,
-      'material': 'aluminum',
-      'massKg': 7,
-      'workingPressureBar': 207,
-      'hotOverfillPercent': 2,
-    },
-    <String, Object?>{
-      'name': 'Steel 12',
-      'volumeL': 12,
-      'material': 'steel',
-      'massKg': 14,
-      'workingPressureBar': 232,
-      'hotOverfillPercent': 2,
-    },
-  ],
-});
 
 /// Storage seeded with [initial] whose writes always fail.
 class _SeededFailingWrites extends MemoryStorage {
@@ -150,7 +127,7 @@ void main() {
 
   test('legacy cylinders are migrated, written back, and noticed once', () {
     final storage = MemoryStorage(<String, String>{
-      SETTINGS_STORAGE_KEY: _legacyCylinderSettingsJson(),
+      SETTINGS_STORAGE_KEY: legacyCylinderSettingsJson(),
     });
     final first = AppController(
       storage: storage,
@@ -184,12 +161,14 @@ void main() {
   test('a failed write-back keeps the migrated settings and the notice', () {
     final controller = AppController(
       storage: _SeededFailingWrites(<String, String>{
-        SETTINGS_STORAGE_KEY: _legacyCylinderSettingsJson(),
+        SETTINGS_STORAGE_KEY: legacyCylinderSettingsJson(),
       }),
       analytics: _RecordingAnalytics(),
     );
     expect(controller.cylinderMigrationNotice, isNotNull);
     expect(controller.settings.cylinderPresets.first.diameterMm, isNotNull);
+    expect(controller.storageWarning, isEmpty);
+    expect(controller.settingsSaveFailure, isFalse);
   });
 
   test('fresh install has no notice and complete presets', () {
