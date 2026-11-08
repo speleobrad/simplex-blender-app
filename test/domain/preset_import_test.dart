@@ -325,4 +325,50 @@ void main() {
       <Object?>[2, 3],
     );
   });
+
+  test('cylinder import keeps dimensions and tolerates their absence', () {
+    final settings = newSettings();
+    final base = settings.cylinderPresets[0].toJson();
+    final withDims = withFields(base, <String, Object?>{
+      'name': 'Imported with dims',
+      'diameterMm': 150.5,
+      'lengthMm': 600,
+    });
+    final withoutDims = Map<String, Object?>.of(base)
+      ..['name'] = 'Imported without dims'
+      ..remove('diameterMm')
+      ..remove('lengthMm');
+    final analysis = analyzePresetSource('cylinders', <Object?>[
+      withDims,
+      withoutDims,
+    ], settings);
+    // Both entries are importable (absent dimensions are not an error).
+    expect(analysis.errors, <String>[]);
+    final candidates = analysis.candidates;
+    expect(candidates.map((c) => c.status).toList(), <String>['new', 'new']);
+    final merged = mergeSelectedPresets(
+      settings,
+      candidates,
+      candidates.map((c) => c.id).toList(),
+    );
+    final byName = {for (final p in merged.cylinderPresets) p.name: p};
+    expect(byName['Imported with dims']!.diameterMm, 150.5);
+    expect(byName['Imported with dims']!.lengthMm, 600);
+    expect(byName['Imported without dims']!.diameterMm, isNull);
+    expect(byName['Imported without dims']!.isComplete, isFalse);
+  });
+
+  test('cylinder import rejects a non-positive dimension', () {
+    final settings = newSettings();
+    final base = settings.cylinderPresets[0].toJson();
+    final bad = withFields(base, <String, Object?>{
+      'name': 'Bad dims',
+      'diameterMm': 0,
+      'lengthMm': 500,
+    });
+    final analysis = analyzePresetSource('cylinders', <Object?>[bad], settings);
+    // A rejected entry stays in the analysis as 'invalid' and is not selectable.
+    expect(analysis.candidates.single.status, 'invalid');
+    expect(analysis.candidates.single.selectable, isFalse);
+  });
 }

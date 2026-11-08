@@ -87,6 +87,8 @@ final Map<String, _CategoryDefinition> _categoryDefinitions =
             'massKg',
             'workingPressureBar',
             'hotOverfillPercent',
+            'diameterMm',
+            'lengthMm',
           ],
           duplicateBy: 'name',
         ),
@@ -377,6 +379,8 @@ CylinderPreset _cylinderPresetFrom(Map<String, Object?> preset) =>
       massKg: _numberField(preset, 'massKg'),
       workingPressureBar: _numberField(preset, 'workingPressureBar'),
       hotOverfillPercent: _numberField(preset, 'hotOverfillPercent'),
+      diameterMm: (preset['diameterMm'] as num?)?.toDouble(),
+      lengthMm: (preset['lengthMm'] as num?)?.toDouble(),
     );
 
 CompressorPreset _compressorPresetFrom(Map<String, Object?> preset) =>
