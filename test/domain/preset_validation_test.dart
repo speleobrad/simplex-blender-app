@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/domain/preset_validation.dart';
+import 'package:simplex_blender/src/domain/settings.dart';
 
 // Messages come verbatim from js/preset-validation.js. The JS rejection cases
 // in tests/settings.test.js (lines 199 and 733) assert RangeError only, so
@@ -96,5 +97,52 @@ void main() {
         'Draining rate must be between 0.01 and 1000 bar/min.',
       ],
     );
+  });
+
+  group('cylinder dimensions', () {
+    Map<String, Object?> base() => CylinderPreset(
+      name: 'Test',
+      volumeL: 3,
+      material: 'steel',
+      massKg: 4.4,
+      workingPressureBar: 232,
+      hotOverfillPercent: 2,
+    ).toJson();
+
+    test('absent and null dimensions pass', () {
+      final absent = base()
+        ..remove('diameterMm')
+        ..remove('lengthMm');
+      expect(validateCylinderPreset(absent), isEmpty);
+      expect(validateCylinderPreset(base()), isEmpty);
+    });
+
+    test('present dimensions must be finite numbers above zero', () {
+      for (final bad in <Object?>[0, -1, double.nan, double.infinity, '100']) {
+        final diameter = <String, Object?>{...base(), 'diameterMm': bad};
+        expect(
+          validateCylinderPreset(diameter),
+          contains(
+            'Cylinder preset “Test” diameter must be greater than 0 mm.',
+          ),
+          reason: 'diameter $bad',
+        );
+        final length = <String, Object?>{...base(), 'lengthMm': bad};
+        expect(
+          validateCylinderPreset(length),
+          contains('Cylinder preset “Test” length must be greater than 0 mm.'),
+          reason: 'length $bad',
+        );
+      }
+    });
+
+    test('valid dimensions pass', () {
+      final valid = <String, Object?>{
+        ...base(),
+        'diameterMm': 100.1,
+        'lengthMm': 495.3,
+      };
+      expect(validateCylinderPreset(valid), isEmpty);
+    });
   });
 }

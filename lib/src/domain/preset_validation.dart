@@ -70,6 +70,22 @@ List<String> validateGasPreset(Object? preset) {
   return errors;
 }
 
+/// Absent or `null` is accepted (incomplete preset). A present value must be a
+/// finite number greater than zero.
+void _addDimensionError(
+  List<String> errors,
+  Map<String, Object?>? map,
+  String key,
+  String label,
+  String name,
+) {
+  if (map == null || map[key] == null) return;
+  final value = _numField(map, key);
+  if (value == null || !value.isFinite || value <= 0) {
+    errors.add('Cylinder preset “$name” $label must be greater than 0 mm.');
+  }
+}
+
 List<String> validateCylinderPreset(Object? preset) {
   final errors = _validateNamedPreset('cylinder', preset);
   final map = _asMap(preset);
@@ -98,6 +114,8 @@ List<String> validateCylinderPreset(Object? preset) {
       'Cylinder preset “$name” hot overfill must be between 0 and 5% in 0.5% steps.',
     );
   }
+  _addDimensionError(errors, map, 'diameterMm', 'diameter', name);
+  _addDimensionError(errors, map, 'lengthMm', 'length', name);
   return errors;
 }
 

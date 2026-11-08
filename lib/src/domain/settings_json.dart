@@ -233,6 +233,13 @@ double _toDouble(Map<String, Object?> json, String key) {
   return (json[key] as num).toDouble();
 }
 
+/// Absent or `null` becomes null; a number becomes a double. The validators
+/// run first, so a present value is a finite positive number or the settings
+/// were rejected.
+double? _optionalDouble(Map<String, Object?> json, String key) {
+  return (json[key] as num?)?.toDouble();
+}
+
 Map<String, Object?> _map(Map<String, Object?> json, String key) {
   return json[key] as Map<String, Object?>;
 }
@@ -257,6 +264,8 @@ CylinderPreset cylinderPresetFromJson(Map<String, Object?> json) =>
       massKg: _toDouble(json, 'massKg'),
       workingPressureBar: _toDouble(json, 'workingPressureBar'),
       hotOverfillPercent: _toDouble(json, 'hotOverfillPercent'),
+      diameterMm: _optionalDouble(json, 'diameterMm'),
+      lengthMm: _optionalDouble(json, 'lengthMm'),
     );
 
 /// Parses a validated `compressorPresets` entry.

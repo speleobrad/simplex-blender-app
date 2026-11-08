@@ -1,5 +1,7 @@
 import 'package:simplex_blender/src/domain/bank.dart';
 import 'package:simplex_blender/src/domain/cost.dart';
+import 'package:simplex_blender/src/domain/cylinder_geometry.dart';
+import 'package:simplex_blender/src/domain/domain_error.dart';
 import 'package:simplex_blender/src/domain/input_validation.dart';
 import 'package:simplex_blender/src/domain/preset_validation.dart';
 
@@ -69,7 +71,9 @@ class GasPreset {
   int get hashCode => Object.hash(name, oxygenPercent, heliumPercent);
 }
 
-/// A cylinder preset (JS `cylinderPresets` entry).
+/// A cylinder preset (JS `cylinderPresets` entry). `diameterMm` and
+/// `lengthMm` (body without valve) are Flutter-only additions; null means
+/// unknown, which makes the preset incomplete.
 class CylinderPreset {
   const CylinderPreset({
     required this.name,
@@ -78,6 +82,8 @@ class CylinderPreset {
     required this.massKg,
     required this.workingPressureBar,
     required this.hotOverfillPercent,
+    this.diameterMm,
+    this.lengthMm,
   });
 
   final String name;
@@ -86,6 +92,23 @@ class CylinderPreset {
   final double massKg;
   final double workingPressureBar;
   final double hotOverfillPercent;
+  final double? diameterMm;
+  final double? lengthMm;
+
+  /// True only when both dimensions are finite and greater than zero.
+  bool get isComplete =>
+      _validDimension(diameterMm) && _validDimension(lengthMm);
+
+  /// Heat-transfer surface in m². Throws when the preset is incomplete.
+  double get surfaceAreaM2 {
+    if (!isComplete) {
+      throw DomainError(incompleteCylinderMessage(name));
+    }
+    return tankSurfaceAreaM2(diameterMm: diameterMm!, lengthMm: lengthMm!);
+  }
+
+  static bool _validDimension(double? value) =>
+      value != null && value.isFinite && value > 0;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
@@ -94,8 +117,12 @@ class CylinderPreset {
     'massKg': massKg,
     'workingPressureBar': workingPressureBar,
     'hotOverfillPercent': hotOverfillPercent,
+    'diameterMm': diameterMm,
+    'lengthMm': lengthMm,
   };
 
+  /// A null argument keeps the current value. The editor passes `double.nan`
+  /// to represent a cleared dimension field, which validation rejects.
   CylinderPreset copyWith({
     String? name,
     double? volumeL,
@@ -103,6 +130,8 @@ class CylinderPreset {
     double? massKg,
     double? workingPressureBar,
     double? hotOverfillPercent,
+    double? diameterMm,
+    double? lengthMm,
   }) {
     return CylinderPreset(
       name: name ?? this.name,
@@ -111,6 +140,8 @@ class CylinderPreset {
       massKg: massKg ?? this.massKg,
       workingPressureBar: workingPressureBar ?? this.workingPressureBar,
       hotOverfillPercent: hotOverfillPercent ?? this.hotOverfillPercent,
+      diameterMm: diameterMm ?? this.diameterMm,
+      lengthMm: lengthMm ?? this.lengthMm,
     );
   }
 
@@ -122,7 +153,9 @@ class CylinderPreset {
       other.material == material &&
       other.massKg == massKg &&
       other.workingPressureBar == workingPressureBar &&
-      other.hotOverfillPercent == hotOverfillPercent;
+      other.hotOverfillPercent == hotOverfillPercent &&
+      other.diameterMm == diameterMm &&
+      other.lengthMm == lengthMm;
 
   @override
   int get hashCode => Object.hash(
@@ -132,6 +165,8 @@ class CylinderPreset {
     massKg,
     workingPressureBar,
     hotOverfillPercent,
+    diameterMm,
+    lengthMm,
   );
 }
 
@@ -596,6 +631,8 @@ const Settings DEFAULT_SETTINGS = Settings(
       massKg: 4.4,
       workingPressureBar: 232,
       hotOverfillPercent: DEFAULT_HOT_OVERFILL_PERCENT,
+      diameterMm: 100.1,
+      lengthMm: 495.3,
     ),
     CylinderPreset(
       name: 'Catalina S13',
@@ -604,6 +641,8 @@ const Settings DEFAULT_SETTINGS = Settings(
       massKg: 2.6,
       workingPressureBar: 207,
       hotOverfillPercent: DEFAULT_HOT_OVERFILL_PERCENT,
+      diameterMm: 111.3,
+      lengthMm: 325,
     ),
     CylinderPreset(
       name: 'Luxfer S40',
@@ -612,14 +651,18 @@ const Settings DEFAULT_SETTINGS = Settings(
       massKg: 7.2,
       workingPressureBar: 207,
       hotOverfillPercent: DEFAULT_HOT_OVERFILL_PERCENT,
+      diameterMm: 133,
+      lengthMm: 625,
     ),
     CylinderPreset(
       name: 'Luxfer S80',
-      volumeL: 10.6,
+      volumeL: 11.1,
       material: 'aluminum',
       massKg: 13.7,
       workingPressureBar: 217,
       hotOverfillPercent: DEFAULT_HOT_OVERFILL_PERCENT,
+      diameterMm: 184,
+      lengthMm: 662,
     ),
     CylinderPreset(
       name: 'Catalina S80',
@@ -628,6 +671,8 @@ const Settings DEFAULT_SETTINGS = Settings(
       massKg: 14.3,
       workingPressureBar: 207,
       hotOverfillPercent: DEFAULT_HOT_OVERFILL_PERCENT,
+      diameterMm: 184.2,
+      lengthMm: 658,
     ),
   ],
   booster: SettingsBooster(
