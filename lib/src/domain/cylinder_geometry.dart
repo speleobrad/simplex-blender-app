@@ -80,6 +80,10 @@ String? cylinderPlausibilityMessage({
   };
 }
 
+/// Message shown where the selected preset name matches no preset in Settings.
+const String selectCylinderPresetMessage =
+    'Select an available cylinder preset.';
+
 /// Message shown where an incomplete preset is refused.
 String incompleteCylinderMessage(String name) =>
     'Cylinder preset “$name” needs a diameter and length. '

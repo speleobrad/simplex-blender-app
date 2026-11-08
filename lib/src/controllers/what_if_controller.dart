@@ -17,7 +17,6 @@ import '../domain/settings.dart';
 import '../domain/thermodynamics.dart';
 import '../domain/what_if_scenario.dart';
 
-const String _selectPresetMessage = 'Select an available cylinder preset.';
 const String _gasCompositionMessage =
     'Initial oxygen and helium percentages must total no more than 100%.';
 const String _physicsModelMessage = 'Physics model must be ideal or vdw.';
@@ -636,7 +635,7 @@ class WhatIfController extends ChangeNotifier {
         const WhatIfError(
           rowId: null,
           field: 'cylinderPresetName',
-          message: _selectPresetMessage,
+          message: selectCylinderPresetMessage,
         )
       else if (!preset.isComplete)
         WhatIfError(

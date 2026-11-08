@@ -189,33 +189,101 @@ void main() {
     },
   );
 
+  test('deleting the selected preset refuses Optimize with a message', () {
+    final bankList = List<Bank>.of(DEFAULT_BANKS);
+    final controller = _controller(
+      bankList: bankList,
+      settings: DEFAULT_SETTINGS,
+    );
+    expect(controller.lastResult!['feasible'], isTrue);
+    final withoutPreset = DEFAULT_SETTINGS.copyWith(
+      cylinderPresets: <CylinderPreset>[
+        for (final preset in DEFAULT_SETTINGS.cylinderPresets)
+          if (preset.name != 'Catalina S80') preset,
+      ],
+    );
+
+    controller.updateSharedInputs(banks: bankList, settings: withoutPreset);
+
+    final result = controller.lastResult!;
+    expect(result['feasible'], isFalse);
+    expect(result.toString(), contains(selectCylinderPresetMessage));
+    // Physics did not run: no protocol steps and no blend.
+    expect(result['protocolSteps'], isEmpty);
+    expect(result['blend'], isNull);
+  });
+
+  test('renaming the selected preset refuses Optimize with a message', () {
+    final bankList = List<Bank>.of(DEFAULT_BANKS);
+    final controller = _controller(
+      bankList: bankList,
+      settings: DEFAULT_SETTINGS,
+    );
+    final renamed = DEFAULT_SETTINGS.copyWith(
+      cylinderPresets: <CylinderPreset>[
+        for (final preset in DEFAULT_SETTINGS.cylinderPresets)
+          if (preset.name == 'Catalina S80')
+            preset.copyWith(name: 'Catalina S80 old')
+          else
+            preset,
+      ],
+    );
+
+    controller.updateSharedInputs(banks: bankList, settings: renamed);
+
+    final result = controller.lastResult!;
+    expect(result['feasible'], isFalse);
+    expect(result.toString(), contains(selectCylinderPresetMessage));
+    expect(result['protocolSteps'], isEmpty);
+    expect(result['blend'], isNull);
+  });
+
+  test('re-adding a refused preset name recovers Optimize', () {
+    final bankList = List<Bank>.of(DEFAULT_BANKS);
+    final controller = _controller(
+      bankList: bankList,
+      settings: DEFAULT_SETTINGS,
+    );
+    final withoutPreset = DEFAULT_SETTINGS.copyWith(
+      cylinderPresets: <CylinderPreset>[
+        for (final preset in DEFAULT_SETTINGS.cylinderPresets)
+          if (preset.name != 'Catalina S80') preset,
+      ],
+    );
+    controller.updateSharedInputs(banks: bankList, settings: withoutPreset);
+    expect(controller.lastResult!['feasible'], isFalse);
+
+    controller.updateSharedInputs(banks: bankList, settings: DEFAULT_SETTINGS);
+
+    expect(controller.lastResult!['feasible'], isTrue);
+    expect(
+      controller.lastResult!.toString(),
+      isNot(contains(selectCylinderPresetMessage)),
+    );
+  });
+
   test(
-    'updateSharedInputs keeps the previous preset when its name is gone',
+    'an existing selected preset still calculates after settings change',
     () {
       final bankList = List<Bank>.of(DEFAULT_BANKS);
       final controller = _controller(
         bankList: bankList,
         settings: DEFAULT_SETTINGS,
       );
-      final before =
-          (controller.lastInput!['thermal']!
-                  as Map<String, Object?>)['tankSurfaceAreaM2']!
-              as double;
-      final renamed = DEFAULT_SETTINGS.copyWith(
+      final resent = DEFAULT_SETTINGS.copyWith(
         cylinderPresets: <CylinderPreset>[
           for (final preset in DEFAULT_SETTINGS.cylinderPresets)
-            if (preset.name != 'Catalina S80') preset,
+            if (preset.name == 'Catalina S80') preset.copyWith() else preset,
         ],
       );
 
-      controller.updateSharedInputs(banks: bankList, settings: renamed);
+      controller.updateSharedInputs(banks: bankList, settings: resent);
 
-      final after =
-          (controller.lastInput!['thermal']!
-                  as Map<String, Object?>)['tankSurfaceAreaM2']!
-              as double;
-      expect(after, closeTo(before, 1e-12));
-      expect(controller.lastInput!['cylinder'], isNotNull);
+      expect(controller.lastResult!['feasible'], isTrue);
+      expect(
+        controller.lastResult!.toString(),
+        isNot(contains('Select an available cylinder preset.')),
+      );
     },
   );
 

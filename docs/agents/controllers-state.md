@@ -75,7 +75,7 @@ Factory reset:
 ## BlendController
 
 Shared inputs (`updateSharedInputs`):
-- Re-resolves the selected cylinder preset by name from `settings.cylinderPresets` first, so edits made in Settings reach Blending without re-picking the preset. A name that no longer exists keeps the previous preset.
+- Re-resolves the selected cylinder preset by name from `settings.cylinderPresets` first, so edits made in Settings reach Blending without re-picking the preset. A name that no longer exists (deleted or renamed in Settings) keeps the previous copy in `_inputs`, but Blending refuses to calculate from it: see the refusal below. Re-adding a preset with that name, or re-selecting a preset in the dropdown, recovers.
 - Drops bank price suggestions for banks whose `enabled` flipped.
 - If `calculatorInputSignature` changed from the previous input, clears interim readings and `interimMeasurementSignature`.
 - Prunes suggestions that are no longer fresh, then recalculates.
@@ -98,6 +98,7 @@ Interim readings (`applyInterimMeasurement`, `clearInterimMeasurement`):
 Results:
 - Invalid input yields `_invalidInputResult`: `feasible: false`, `error: 'Invalid input: ...'`.
 - An incomplete cylinder preset (no diameter or length) is refused before any physics runs. The validation message is `incompleteCylinderMessage(name)`.
+- A selected preset whose name matches no preset in the current `settings.cylinderPresets` is refused before any physics runs, with `selectCylinderPresetMessage` ('Select an available cylinder preset.'), the same message What-if uses. This check comes first, so no incomplete-preset message is added for it.
 - Both paths pass through `_withPressureLimitWarnings`.
 - `blend_calculated` is tracked once per run with the `optimize` mode and outcome `invalidInput`, `feasible`, or `infeasible`.
 

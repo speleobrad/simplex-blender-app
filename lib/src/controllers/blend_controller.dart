@@ -426,6 +426,9 @@ class BlendController extends ChangeNotifier {
     List<InterimMeasurement?> measurements,
   ) {
     final preset = input.cylinderPreset;
+    if (!_settings.cylinderPresets.any((known) => known.name == preset.name)) {
+      return <String>[selectCylinderPresetMessage];
+    }
     return <String>[
       if (!preset.isComplete) incompleteCylinderMessage(preset.name),
       ...validateCalculatorInputs(
