@@ -3,6 +3,8 @@ import 'package:simplex_blender/src/domain/interim_check.dart';
 import 'package:simplex_blender/src/domain/optimizer.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 
+import '../support/tank_area.dart';
+
 Map<String, Object?> bank(
   String id,
   String name,
@@ -38,6 +40,7 @@ final defaultScenario = <String, Object?>{
   'banks': [bank('oxygen', 'Oxygen', 100, 0), bank('helium', 'Helium', 0, 100)],
   'thermal': {
     'tankMaterial': 'steel',
+    'tankSurfaceAreaM2': steelTestAreaM2,
     'coolingMedium': 'air',
     'ambientTemperatureC': 21,
     'inletTemperatureC': 25,
@@ -120,6 +123,7 @@ final salvageScenario = <String, Object?>{
   ],
   'thermal': {
     'tankMaterial': 'steel',
+    'tankSurfaceAreaM2': steelTestAreaM2,
     'coolingMedium': 'air',
     'ambientTemperatureC': 20,
     'inletTemperatureC': 40,

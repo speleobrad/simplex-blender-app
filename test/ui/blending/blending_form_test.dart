@@ -124,6 +124,70 @@ void main() {
     );
   });
 
+  testWidgets(
+    'cylinder hint shows dimensions and surface for a complete preset',
+    (tester) async {
+      final harness = _Harness.create();
+      await _pump(tester, harness);
+
+      // Catalina S80: 184.2 mm x 658.0 mm; surface 0.434045 m^2 -> 0.43.
+      expect(_textMatching(RegExp(r'184\.2 mm × 658\.0 mm')), findsOneWidget);
+      expect(_textMatching(RegExp(r'0\.43 m²')), findsOneWidget);
+    },
+  );
+
+  testWidgets('an incomplete preset is labelled and disabled in the dropdown', (
+    tester,
+  ) async {
+    const analytics = NoopAnalytics();
+    final app = AppController(storage: MemoryStorage(), analytics: analytics);
+    final legacy = CylinderPreset(
+      name: 'Legacy 5L',
+      volumeL: 5,
+      material: 'aluminum',
+      massKg: 4,
+      workingPressureBar: 207,
+      hotOverfillPercent: 0,
+    );
+    final errors = app.applySettings(
+      copySettings(DEFAULT_SETTINGS).copyWith(
+        cylinderPresets: <CylinderPreset>[
+          ...DEFAULT_SETTINGS.cylinderPresets,
+          legacy,
+        ],
+      ),
+    );
+    expect(errors, isEmpty);
+    final blend = BlendController(
+      inputs: _inputs(),
+      banks: app.banks,
+      settings: app.settings,
+      updateBank: (_) {},
+      analytics: analytics,
+    );
+    await _pump(tester, _Harness(app, blend));
+
+    await tester.tap(find.text('Catalina S80').first);
+    await tester.pumpAndSettle();
+
+    final item = tester.widget<DropdownMenuItem<String>>(
+      find
+          .widgetWithText(
+            DropdownMenuItem<String>,
+            'Legacy 5L (needs dimensions)',
+          )
+          .first,
+    );
+    expect(item.enabled, isFalse);
+
+    blend.setInputs(blend.inputs.copyWith(cylinderPreset: legacy));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Needs diameter and length in Settings.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('shows tank submersion once the medium is water', (tester) async {
     final harness = _Harness.create();
     await _pump(tester, harness);

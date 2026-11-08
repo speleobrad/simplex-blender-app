@@ -7,6 +7,7 @@ import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/domain/simplex.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 
+import '../support/tank_area.dart';
 import 'optimizer_fixtures.dart';
 
 Map<String, Object?> _m(Object? value) => value! as Map<String, Object?>;
@@ -414,6 +415,7 @@ ThermalProtocolResult _simulation(List<ProtocolStep> steps) =>
 const ThermalInput _steelThermal = ThermalInput(
   ambientTemperatureC: 20,
   tankMaterial: 'steel',
+  tankSurfaceAreaM2: steelTestAreaM2,
   coolingMedium: 'air',
   inletTemperatureC: 40,
   targetMediumTemperatureC: 20,
@@ -451,6 +453,7 @@ const PhysicsInput _idealPhysics20 = PhysicsInput(
 /// JS `thermalFailureFixture`.
 final Map<String, Object?> thermalFailureFixture = <String, Object?>{
   'tankMaterial': 'steel',
+  'tankSurfaceAreaM2': steelTestAreaM2,
   'coolingMedium': 'air',
   'ambientTemperatureC': 25,
   'inletTemperatureC': 25,
@@ -477,6 +480,7 @@ final Map<String, Object?> defaultRecipeInput = <String, Object?>{
   'banks': <Object?>[for (final bank in DEFAULT_BANKS) _bankMap(bank)],
   'thermal': <String, Object?>{
     'tankMaterial': 'aluminum',
+    'tankSurfaceAreaM2': aluminumTestAreaM2,
     'coolingMedium': 'air',
     'ambientTemperatureC': 21.0,
     'inletTemperatureC': 25.0,
@@ -505,6 +509,7 @@ final Map<String, Object?> schedulerSplitInput = <String, Object?>{
   'physics': _idealPhysics(),
   'thermal': <String, Object?>{
     'tankMaterial': 'steel',
+    'tankSurfaceAreaM2': steelTestAreaM2,
     'coolingMedium': 'air',
     'ambientTemperatureC': 20.0,
     'inletTemperatureC': 40.0,
@@ -639,6 +644,7 @@ Map<String, Object?> _salvageThenDecantInput({Map<String, Object?>? thermal}) =>
 
 final Map<String, Object?> _salvageThermal = <String, Object?>{
   'tankMaterial': 'steel',
+  'tankSurfaceAreaM2': steelTestAreaM2,
   'coolingMedium': 'air',
   'ambientTemperatureC': 20.0,
   'inletTemperatureC': 40.0,
@@ -715,6 +721,7 @@ void main() {
       () {
         final validThermal = <String, Object?>{
           'tankMaterial': 'steel',
+          'tankSurfaceAreaM2': steelTestAreaM2,
           'ambientTemperatureC': 20.0,
           'inletTemperatureC': 20.0,
           'targetMediumTemperatureC': 25.0,
@@ -792,6 +799,7 @@ void main() {
         'banks': <Object?>[],
         'thermal': <String, Object?>{
           'tankMaterial': 'steel',
+          'tankSurfaceAreaM2': steelTestAreaM2,
           'coolingMedium': 'air',
           'ambientTemperatureC': 30.0,
           'waitMinutes': 10.0,
@@ -831,6 +839,7 @@ void main() {
           'banks': <Object?>[],
           'thermal': <String, Object?>{
             'tankMaterial': 'steel',
+            'tankSurfaceAreaM2': steelTestAreaM2,
             'coolingMedium': 'air',
             'ambientTemperatureC': 20.0,
             'waitMinutes': 10.0,
@@ -868,6 +877,7 @@ void main() {
           'banks': <Object?>[],
           'thermal': <String, Object?>{
             'tankMaterial': 'steel',
+            'tankSurfaceAreaM2': steelTestAreaM2,
             'coolingMedium': 'air',
             'ambientTemperatureC': 20.0,
             'waitMode': 'minutes',
@@ -905,6 +915,7 @@ void main() {
           'physics': <String, Object?>{'model': 'vdw', 'temperatureC': 25.0},
           'thermal': <String, Object?>{
             'tankMaterial': 'steel',
+            'tankSurfaceAreaM2': steelTestAreaM2,
             'coolingMedium': 'water',
             'ambientTemperatureC': 25.0,
             'inletTemperatureC': 25.0,
@@ -1106,6 +1117,7 @@ void main() {
         thermal: const ThermalInput(
           ambientTemperatureC: 20,
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'air',
           inletTemperatureC: 40,
           targetMediumTemperatureC: 30,
@@ -1269,6 +1281,7 @@ void main() {
         thermal: const ThermalInput(
           ambientTemperatureC: 20,
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'air',
           inletTemperatureC: 30,
           targetMediumTemperatureC: 20,
@@ -1389,6 +1402,7 @@ void main() {
         'physics': _idealPhysics(),
         'thermal': <String, Object?>{
           'tankMaterial': 'steel',
+          'tankSurfaceAreaM2': steelTestAreaM2,
           'coolingMedium': 'air',
           'ambientTemperatureC': 20.0,
           'inletTemperatureC': 40.0,
@@ -1459,6 +1473,7 @@ void main() {
           thermal: const ThermalInput(
             ambientTemperatureC: 20,
             tankMaterial: 'steel',
+            tankSurfaceAreaM2: steelTestAreaM2,
             coolingMedium: 'air',
             inletTemperatureC: 40,
             targetMediumTemperatureC: 20,
@@ -1541,6 +1556,7 @@ void main() {
       final thermal = const ThermalInput(
         ambientTemperatureC: 20,
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         inletTemperatureC: 40,
         targetMediumTemperatureC: 20,
@@ -1631,6 +1647,7 @@ void main() {
         thermal: const ThermalInput(
           ambientTemperatureC: 20,
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'air',
           inletTemperatureC: 30,
           targetMediumTemperatureC: 20,
@@ -1681,6 +1698,7 @@ void main() {
         'hotOverfillPercent': 2.0,
       };
       final thermal = const ThermalInput(
+        tankSurfaceAreaM2: steelTestAreaM2,
         ambientTemperatureC: 20,
         targetInWaterTemperatureC: 10,
       );
@@ -1858,6 +1876,7 @@ void main() {
           _simulation(<ProtocolStep>[ProtocolStep(thermal: state)]),
           100,
           thermal: const ThermalInput(
+            tankSurfaceAreaM2: steelTestAreaM2,
             ambientTemperatureC: 20,
             waitMode: 'temperature',
             targetMediumTemperatureC: 30,
@@ -1900,6 +1919,7 @@ void main() {
           _simulation(<ProtocolStep>[ProtocolStep(thermal: state)]),
           100,
           thermal: const ThermalInput(
+            tankSurfaceAreaM2: steelTestAreaM2,
             ambientTemperatureC: 20,
             waitMode: 'temperature',
             targetMediumTemperatureC: 30,
@@ -1929,6 +1949,7 @@ void main() {
         'physics': _idealPhysics20Map(),
         'thermal': <String, Object?>{
           'tankMaterial': 'steel',
+          'tankSurfaceAreaM2': steelTestAreaM2,
           'coolingMedium': 'air',
           'ambientTemperatureC': 20.0,
           'inletTemperatureC': 40.0,
@@ -2024,7 +2045,10 @@ void main() {
           protocolSteps: <ProtocolStep>[],
           cylinder: cylinder,
           physics: _idealPhysics20,
-          thermal: const ThermalInput(ambientTemperatureC: 20),
+          thermal: const ThermalInput(
+            ambientTemperatureC: 20,
+            tankSurfaceAreaM2: steelTestAreaM2,
+          ),
           settings: null,
         ),
         matchesHotOverfill,
@@ -2339,6 +2363,7 @@ void main() {
         ]),
         'thermal': <String, Object?>{
           'tankMaterial': 'steel',
+          'tankSurfaceAreaM2': steelTestAreaM2,
           'coolingMedium': 'air',
           'ambientTemperatureC': 20.0,
           'inletTemperatureC': 20.0,
@@ -2428,6 +2453,7 @@ void main() {
         ]),
         'thermal': <String, Object?>{
           'tankMaterial': 'steel',
+          'tankSurfaceAreaM2': steelTestAreaM2,
           'coolingMedium': 'air',
           'ambientTemperatureC': 20.0,
           'inletTemperatureC': 40.0,
@@ -2552,6 +2578,7 @@ void main() {
         ...input,
         'thermal': <String, Object?>{
           'tankMaterial': 'steel',
+          'tankSurfaceAreaM2': steelTestAreaM2,
           'coolingMedium': 'air',
           'ambientTemperatureC': 20.0,
           'inletTemperatureC': 20.0,
@@ -2630,6 +2657,7 @@ void main() {
         ..._shallowDeepInput,
         'thermal': <String, Object?>{
           'tankMaterial': 'aluminum',
+          'tankSurfaceAreaM2': aluminumTestAreaM2,
           'coolingMedium': 'air',
           'ambientTemperatureC': 21.0,
           'inletTemperatureC': 25.0,

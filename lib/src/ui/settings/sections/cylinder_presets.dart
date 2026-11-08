@@ -8,8 +8,10 @@ extension _CylinderPresetSection on _SettingsScreenState {
     return _section('Cylinder presets', <Widget>[
       const Text(
         'Each preset defines volume, material, assembly mass, working '
-        'pressure, and permitted transient hot overfill. Ambient-settled and '
-        'target-temperature pressures remain limited to working pressure.',
+        'pressure, permitted transient hot overfill, and the body diameter and '
+        'length (without valve) used for the heat-transfer surface. '
+        'Ambient-settled and target-temperature pressures remain limited to '
+        'working pressure.',
       ),
       for (final entry in sortCylinderPresetEntries(presets))
         _cylinderCard(entry.index, entry.preset, presets.length),
@@ -125,12 +127,63 @@ extension _CylinderPresetSection on _SettingsScreenState {
                     preset.copyWith(hotOverfillPercent: value),
                   ),
                 ),
+                _cylinderNumber(
+                  id: 'cyl-diameter-$index',
+                  label: 'Diameter (mm)',
+                  value: preset.diameterMm ?? double.nan,
+                  display: _formatDimension,
+                  onChanged: (value) => _replaceCylinder(
+                    index,
+                    preset.copyWith(diameterMm: value),
+                  ),
+                ),
+                _cylinderNumber(
+                  id: 'cyl-length-$index',
+                  label: 'Length, no valve (mm)',
+                  value: preset.lengthMm ?? double.nan,
+                  display: _formatDimension,
+                  onChanged: (value) =>
+                      _replaceCylinder(index, preset.copyWith(lengthMm: value)),
+                ),
               ],
             ),
+            ..._cylinderGeometryNotes(index, preset),
           ],
         ),
       ),
     );
+  }
+
+  /// Surface for a complete preset, a needs-dimensions marker otherwise, and
+  /// the advisory plausibility warning.
+  List<Widget> _cylinderGeometryNotes(int index, CylinderPreset preset) {
+    final scheme = Theme.of(context).colorScheme;
+    final warning = cylinderPlausibilityMessage(
+      volumeL: preset.volumeL,
+      diameterMm: preset.diameterMm,
+      lengthMm: preset.lengthMm,
+    );
+    return <Widget>[
+      const SizedBox(height: 8),
+      if (preset.isComplete)
+        Text(
+          'Heat-transfer surface: ${preset.surfaceAreaM2.toStringAsFixed(3)} m²',
+          key: ValueKey<String>('cyl-surface-$index'),
+        )
+      else
+        Text(
+          'Needs diameter and length (body without valve, mm). Until then this '
+          'preset cannot be used in calculations.',
+          key: ValueKey<String>('cyl-incomplete-$index'),
+          style: TextStyle(color: scheme.error),
+        ),
+      if (warning != null)
+        Text(
+          warning,
+          key: ValueKey<String>('cyl-plausibility-$index'),
+          style: TextStyle(color: scheme.error),
+        ),
+    ];
   }
 
   Widget _cylinderNumber({
@@ -138,6 +191,7 @@ extension _CylinderPresetSection on _SettingsScreenState {
     required String label,
     required double value,
     required ValueChanged<double> onChanged,
+    String Function(double)? display,
   }) {
     return SizedBox(
       width: 150,
@@ -145,6 +199,7 @@ extension _CylinderPresetSection on _SettingsScreenState {
         key: _key(id),
         label: label,
         value: value,
+        display: display,
         onChanged: onChanged,
       ),
     );
@@ -192,6 +247,8 @@ extension _CylinderPresetSection on _SettingsScreenState {
             massKg: 14,
             workingPressureBar: 232,
             hotOverfillPercent: 2,
+            diameterMm: double.nan,
+            lengthMm: double.nan,
           ),
         ],
       ),

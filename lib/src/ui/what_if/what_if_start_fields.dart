@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:simplex_blender/src/controllers/what_if_controller.dart';
+import 'package:simplex_blender/src/domain/cylinder_preset_text.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 import 'package:simplex_blender/src/domain/units.dart';
@@ -233,7 +234,11 @@ class WhatIfStartFields extends StatelessWidget {
             for (final preset in settings.cylinderPresets)
               DropdownMenuItem<String>(
                 value: preset.name,
-                child: Text(preset.name),
+                child: Text(
+                  preset.isComplete
+                      ? preset.name
+                      : '${preset.name} (needs dimensions)',
+                ),
               ),
           ],
           onChanged: (value) {
@@ -318,10 +323,15 @@ String _cylinderHint(CylinderPreset preset, String? units) {
   final working = jsNumberText(
     convertToDisplay(preset.workingPressureBar, 'pressureBar', units),
   );
-  return '$volume ${unitLabel('volumeL', units)} · '
+  final base =
+      '$volume ${unitLabel('volumeL', units)} · '
       '${materialLabel(preset.material, units)} · '
       '$mass ${unitLabel('massKg', units)} · '
       '$working ${unitLabel('pressureBar', units)} working pressure';
+  final geometry = cylinderGeometryText(preset);
+  return geometry == null
+      ? '$base · needs diameter and length'
+      : '$base · $geometry';
 }
 
 class _Card extends StatelessWidget {

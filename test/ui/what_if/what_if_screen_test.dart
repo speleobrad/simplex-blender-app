@@ -117,6 +117,76 @@ void main() {
     expect(find.text('Run scenario'), findsNothing);
   });
 
+  testWidgets('an incomplete cylinder is labelled in the what-if selector', (
+    tester,
+  ) async {
+    const analytics = NoopAnalytics();
+    final app = AppController(storage: MemoryStorage(), analytics: analytics);
+    final legacy = CylinderPreset(
+      name: 'Legacy 5L',
+      volumeL: 5,
+      material: 'aluminum',
+      massKg: 4,
+      workingPressureBar: 207,
+      hotOverfillPercent: 0,
+    );
+    app.applySettings(
+      copySettings(DEFAULT_SETTINGS).copyWith(
+        units: 'imperial',
+        cylinderPresets: <CylinderPreset>[
+          ...DEFAULT_SETTINGS.cylinderPresets,
+          legacy,
+        ],
+      ),
+    );
+    final blend = BlendController(
+      inputs: BlendInputs(
+        cylinderPreset: legacy,
+        initialPressureBar: 50,
+        initialOxygenPercent: 21,
+        initialHeliumPercent: 0,
+        targetPressureBar: 200,
+        targetOxygenPercent: 21,
+        targetHeliumPercent: 0,
+        ambientTemperatureC: 25,
+        targetInWaterTemperatureC: 20,
+        waitTargetTemperatureC: 25,
+        inletTemperatureC: 25,
+        coolingMedium: 'air',
+        waterSubmersionPercent: 60,
+        waitMode: 'minutes',
+        waitMinutes: 0,
+      ),
+      banks: app.banks,
+      settings: app.settings,
+      updateBank: (_) {},
+      analytics: analytics,
+    );
+    final controller = WhatIfController(
+      analytics: analytics,
+      banks: app.banks,
+      settings: app.settings,
+    );
+    controller.initializeScenario(
+      initialPressureBar: 200,
+      initialOxygenPercent: 21,
+      initialHeliumPercent: 0,
+      cylinderPresetName: 'Legacy 5L',
+      ambientTemperatureC: 25,
+      coolingMedium: 'air',
+      waterSubmersionPercent: 60,
+      targetInWaterTemperatureC: 20,
+    );
+    await _pumpScreen(
+      tester,
+      _Harness._(app: app, blend: blend, controller: controller),
+    );
+
+    expect(find.textContaining('Legacy 5L (needs dimensions)'), findsWidgets);
+    expect(find.byKey(const Key('what-if-cylinder-hint')), findsOneWidget);
+    expect(find.textContaining('· needs diameter and length'), findsOneWidget);
+  });
+
   testWidgets('shows the empty state before any run', (tester) async {
     final harness = await _Harness.create();
     await _pumpScreen(tester, harness);

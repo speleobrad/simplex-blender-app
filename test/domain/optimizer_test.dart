@@ -8,6 +8,8 @@ import 'package:simplex_blender/src/domain/thermodynamics.dart';
 
 import 'optimizer_fixtures.dart';
 
+import '../support/tank_area.dart';
+
 void main() {
   test(
     'default example keeps the cylinder gas when the safety ceiling is active',
@@ -608,6 +610,7 @@ void main() {
       'physics': <String, Object?>{'model': 'ideal', 'temperatureC': 20.0},
       'thermal': <String, Object?>{
         'tankMaterial': 'steel',
+        'tankSurfaceAreaM2': steelTestAreaM2,
         'coolingMedium': 'air',
         'ambientTemperatureC': 20.0,
         'waitMode': 'minutes',
@@ -910,6 +913,7 @@ void main() {
         'physics': <String, Object?>{'model': model, 'temperatureC': 20.0},
         'thermal': <String, Object?>{
           'tankMaterial': 'steel',
+          'tankSurfaceAreaM2': steelTestAreaM2,
           'coolingMedium': 'air',
           'ambientTemperatureC': 20.0,
           'inletTemperatureC': 20.0,

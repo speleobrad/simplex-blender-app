@@ -8,6 +8,7 @@ import 'package:simplex_blender/src/domain/bank_pricing.dart';
 import 'package:simplex_blender/src/domain/blend_defaults.dart';
 import 'package:simplex_blender/src/domain/calculator_input.dart';
 import 'package:simplex_blender/src/domain/cost.dart';
+import 'package:simplex_blender/src/domain/cylinder_geometry.dart';
 import 'package:simplex_blender/src/domain/input_validation.dart';
 import 'package:simplex_blender/src/domain/interim_check.dart';
 import 'package:simplex_blender/src/domain/interim_measurements.dart';
@@ -98,6 +99,7 @@ class BlendController extends ChangeNotifier {
     };
     _banks = banks;
     _settings = settings;
+    _inputs = _inputsWithSettingsPreset(_inputs, settings);
     final currentInput = _buildInput(interimMeasurements);
     final nonPriceChanged =
         previousInput == null ||
@@ -109,6 +111,21 @@ class BlendController extends ChangeNotifier {
     }
     _pruneBankSuggestions();
     recalculate();
+  }
+
+  /// Replaces the selected cylinder preset with the one of the same name in
+  /// [settings], so edits made in Settings reach Blending. The current preset
+  /// is kept when the name no longer exists.
+  static BlendInputs _inputsWithSettingsPreset(
+    BlendInputs inputs,
+    Settings settings,
+  ) {
+    for (final preset in settings.cylinderPresets) {
+      if (preset.name == inputs.cylinderPreset.name) {
+        return inputs.copyWith(cylinderPreset: preset);
+      }
+    }
+    return inputs;
   }
 
   /// JS `recalculate()` for the Optimize result. Readings are cleared when a
@@ -408,12 +425,19 @@ class BlendController extends ChangeNotifier {
     BlendInputs input,
     List<InterimMeasurement?> measurements,
   ) {
-    return validateCalculatorInputs(
-      _calculatorCylinder(input, input.targetPressureBar),
-      CalculatorPhysics(temperatureC: input.ambientTemperatureC),
-      _calculatorThermal(input, measurements),
-      pressureLimitMode: _settings.pressureLimitMode,
-    );
+    final preset = input.cylinderPreset;
+    if (!_settings.cylinderPresets.any((known) => known.name == preset.name)) {
+      return <String>[selectCylinderPresetMessage];
+    }
+    return <String>[
+      if (!preset.isComplete) incompleteCylinderMessage(preset.name),
+      ...validateCalculatorInputs(
+        _calculatorCylinder(input, input.targetPressureBar),
+        CalculatorPhysics(temperatureC: input.ambientTemperatureC),
+        _calculatorThermal(input, measurements),
+        pressureLimitMode: _settings.pressureLimitMode,
+      ),
+    ];
   }
 
   CalculatorCylinder _calculatorCylinder(

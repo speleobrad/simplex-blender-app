@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/domain/bank.dart';
 import 'package:simplex_blender/src/domain/cost.dart';
+import 'package:simplex_blender/src/domain/cylinder_geometry.dart';
+import 'package:simplex_blender/src/domain/domain_error.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
+import 'package:simplex_blender/src/domain/settings_json.dart';
 
 CylinderPreset _cylinder(String name, double volumeL) {
   return CylinderPreset(
@@ -55,6 +58,8 @@ void main() {
         massKg: 4.4,
         workingPressureBar: 232,
         hotOverfillPercent: 2,
+        diameterMm: 100.1,
+        lengthMm: 495.3,
       ),
       CylinderPreset(
         name: 'Catalina S13',
@@ -63,6 +68,8 @@ void main() {
         massKg: 2.6,
         workingPressureBar: 207,
         hotOverfillPercent: 2,
+        diameterMm: 111.3,
+        lengthMm: 325,
       ),
       CylinderPreset(
         name: 'Luxfer S40',
@@ -71,14 +78,18 @@ void main() {
         massKg: 7.2,
         workingPressureBar: 207,
         hotOverfillPercent: 2,
+        diameterMm: 133,
+        lengthMm: 625,
       ),
       CylinderPreset(
         name: 'Luxfer S80',
-        volumeL: 10.6,
+        volumeL: 11.1,
         material: 'aluminum',
         massKg: 13.7,
         workingPressureBar: 217,
         hotOverfillPercent: 2,
+        diameterMm: 184,
+        lengthMm: 662,
       ),
       CylinderPreset(
         name: 'Catalina S80',
@@ -87,6 +98,8 @@ void main() {
         massKg: 14.3,
         workingPressureBar: 207,
         hotOverfillPercent: 2,
+        diameterMm: 184.2,
+        lengthMm: 658,
       ),
     ]);
     expect(DEFAULT_SETTINGS.compressorPresets, const <CompressorPreset>[
@@ -992,5 +1005,83 @@ void main() {
       ),
     );
     expect(validateSettings(settings), isNotEmpty);
+  });
+
+  group('CylinderPreset dimensions', () {
+    const complete = CylinderPreset(
+      name: 'A',
+      volumeL: 3,
+      material: 'steel',
+      massKg: 4.4,
+      workingPressureBar: 232,
+      hotOverfillPercent: 2,
+      diameterMm: 100.1,
+      lengthMm: 495.3,
+    );
+
+    test('isComplete needs both finite positive dimensions', () {
+      expect(complete.isComplete, isTrue);
+      expect(complete.copyWith(diameterMm: double.nan).isComplete, isFalse);
+      expect(complete.copyWith(lengthMm: 0).isComplete, isFalse);
+      const legacy = CylinderPreset(
+        name: 'B',
+        volumeL: 3,
+        material: 'steel',
+        massKg: 4.4,
+        workingPressureBar: 232,
+        hotOverfillPercent: 2,
+      );
+      expect(legacy.isComplete, isFalse);
+      expect(legacy.copyWith(diameterMm: 100).isComplete, isFalse);
+    });
+
+    test('surfaceAreaM2 uses the geometry module and refuses incomplete', () {
+      expect(
+        complete.surfaceAreaM2,
+        tankSurfaceAreaM2(diameterMm: 100.1, lengthMm: 495.3),
+      );
+      expect(
+        () => complete.copyWith(lengthMm: double.nan).surfaceAreaM2,
+        throwsA(isA<DomainError>()),
+      );
+    });
+
+    test('toJson always writes both keys; null stays null', () {
+      expect(complete.toJson()['diameterMm'], 100.1);
+      expect(complete.toJson()['lengthMm'], 495.3);
+      const legacy = CylinderPreset(
+        name: 'B',
+        volumeL: 3,
+        material: 'steel',
+        massKg: 4.4,
+        workingPressureBar: 232,
+        hotOverfillPercent: 2,
+      );
+      final json = legacy.toJson();
+      expect(json.containsKey('diameterMm'), isTrue);
+      expect(json['diameterMm'], isNull);
+      expect(json.containsKey('lengthMm'), isTrue);
+      expect(json['lengthMm'], isNull);
+    });
+
+    test('cylinderPresetFromJson round-trips and tolerates absent keys', () {
+      expect(cylinderPresetFromJson(complete.toJson()), complete);
+      final absent = complete.toJson()
+        ..remove('diameterMm')
+        ..remove('lengthMm');
+      final parsed = cylinderPresetFromJson(absent);
+      expect(parsed.diameterMm, isNull);
+      expect(parsed.lengthMm, isNull);
+      expect(parsed.isComplete, isFalse);
+      final oneKey = complete.toJson()..remove('lengthMm');
+      expect(cylinderPresetFromJson(oneKey).isComplete, isFalse);
+    });
+
+    test('equality and hashCode include the dimensions', () {
+      expect(complete == complete.copyWith(), isTrue);
+      expect(complete == complete.copyWith(diameterMm: 101), isFalse);
+      expect(complete == complete.copyWith(lengthMm: 500), isFalse);
+      expect(complete.copyWith().hashCode, complete.hashCode);
+    });
   });
 }

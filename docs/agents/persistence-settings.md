@@ -51,6 +51,7 @@ Save (`saveSettings`):
 Shape:
 - There is no version field. Shape is enforced only by `validateSettingsJson` (`lib/src/domain/settings_json.dart`).
 - Checked: `gasPresets` and `cylinderPresets` are non-empty lists; `units` is `metric` or `imperial`; `pressureLimitMode` is `hard-stop` or `warning`; `pressureWarningUnlocked` is bool; `warning` mode requires the unlock; `interimPressureTolerancePercent` is in 0.5–10; `physics.model` is `ideal` or `vdw`; booster scalars; compressor, booster, gas, and cylinder preset validators; preset names unique; `validateCostSettings`.
+- Cylinder presets store `diameterMm` and `lengthMm` (body without valve, mm). Both are always written, as a number or `null`. `null` means incomplete, and an incomplete preset cannot be used in calculations. An untouched legacy preset with `null` dimensions stays saveable.
 - `settingsFromJson` assumes validated input. Do not call it on raw JSON.
 
 Migrations (`normalizeSettingsJson`), in order:
@@ -59,6 +60,8 @@ Migrations (`normalizeSettingsJson`), in order:
 3. `addDefaultPressureLimitPolicy`
 4. `addDefaultPhysics`
 5. `addDefaultCylinderPresets`: legacy `volumePresets` convert via `legacyVolumePresetsToCylinders`. Each becomes `'<n> L Steel 232 bar'`, steel, 14 kg, 232 bar working pressure. `hotOverfillPercent` is filled only when absent.
+- Cylinder dimensions run after `addDefaultCylinderPresets`: `correctLuxferS80Volume`, then `addNearestCylinderDimensions` (`settings_migrations.dart`). Rules: only steel presets at exactly 3 L get dimensions. Other steel sizes and every other non-aluminium material (for example carbon-wrapped-steel) get none, and stay incomplete with an explicit `null` on the next save. Aluminium presets get the nearest standard geometry with no cutoff; ties go to the same name, then the smaller volume, then the earlier default. A preset with explicit `null` dimensions is skipped.
+- `loadSettings` does not write migrated dimensions back. `AppController` writes them back and shows a one-time notice only when a preset received dimensions. The web app has no dimensions, so this is a parity divergence. Presets imported from an external file without dimensions are incomplete. The Luxfer S80 default is corrected to 11.1 L.
 6. `addDefaultEquipmentPresets`: MUST run after `addDefaultBooster`.
 7. `addDefaultInterimPressureTolerance`
 8. `addDefaultCosts`: `copyCosts` treats non-object `costs` and `operationPrices` as absent. Legacy per-litre keys are ignored. `feeOrZero`: an absent fee is 0.

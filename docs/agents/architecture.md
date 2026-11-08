@@ -6,7 +6,7 @@ Layering, import direction, UI feature map, and porting conventions for `lib/`.
 
 | Layer | Path | Role | May import |
 |---|---|---|---|
-| domain | `lib/src/domain/` | Pure Dart: physics, thermodynamics, optimizer, validation, settings JSON shape | `domain` only. No `package:flutter`. |
+| domain | `lib/src/domain/` | Pure Dart: physics, thermodynamics, optimizer, validation, settings JSON shape, cylinder geometry (`cylinder_geometry.dart`) and preset display text (`cylinder_preset_text.dart`) | `domain` only. No `package:flutter`. |
 | data | `lib/src/data/` | `KeyValueStorage` adapters, settings/bank/theme/onboarding persistence, settings migrations, `preset_source.dart` (file picker and HTTP) | `data`, `domain`, `package:shared_preferences` (`preferences_storage.dart` only), `package:file_picker` and `package:http` (`preset_source.dart` only) |
 | analytics | `lib/src/analytics/` | `Analytics` interface, event enums, `NoopAnalytics`, `GatedAnalytics`, `AptabaseAnalytics` | `analytics`, `package:aptabase_flutter` |
 | controllers | `lib/src/controllers/` | `ChangeNotifier` state: `AppController`, `BlendController`, `WhatIfController` | `domain`, `data`, `analytics`, `package:flutter/foundation.dart` |

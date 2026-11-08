@@ -12,6 +12,8 @@ import 'package:simplex_blender/src/domain/thermodynamics.dart';
 
 import 'optimizer_fixtures.dart';
 
+import '../support/tank_area.dart';
+
 // Default page recipe: 45 bar Air at 21 °C to 195 bar 18/45 with the default banks.
 Map<String, Object?> _baseInput() {
   final input = defaultOptimizerInput();
@@ -32,6 +34,7 @@ Map<String, Object?> _baseInput() {
   ];
   input['thermal'] = <String, Object?>{
     'tankMaterial': 'aluminum',
+    'tankSurfaceAreaM2': aluminumTestAreaM2,
     'coolingMedium': 'air',
     'ambientTemperatureC': 21.0,
     'inletTemperatureC': 25.0,
@@ -234,6 +237,7 @@ Map<String, Object?> _salvageInput() => <String, Object?>{
   ],
   'thermal': <String, Object?>{
     'tankMaterial': 'steel',
+    'tankSurfaceAreaM2': steelTestAreaM2,
     'coolingMedium': 'air',
     'ambientTemperatureC': 20.0,
     'inletTemperatureC': 40.0,
@@ -299,6 +303,7 @@ Map<String, Object?> _drainInput() => <String, Object?>{
   ],
   'thermal': <String, Object?>{
     'tankMaterial': 'steel',
+    'tankSurfaceAreaM2': steelTestAreaM2,
     'coolingMedium': 'air',
     'ambientTemperatureC': 20.0,
     'inletTemperatureC': 40.0,

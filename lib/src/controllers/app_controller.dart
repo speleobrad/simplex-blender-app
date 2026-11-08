@@ -13,6 +13,7 @@ import 'package:simplex_blender/src/data/bank_storage.dart';
 import 'package:simplex_blender/src/data/factory_reset_storage.dart';
 import 'package:simplex_blender/src/data/key_value_storage.dart';
 import 'package:simplex_blender/src/data/onboarding_storage.dart';
+import 'package:simplex_blender/src/data/settings_migrations.dart';
 import 'package:simplex_blender/src/data/settings_storage.dart';
 import 'package:simplex_blender/src/data/theme_storage.dart';
 import 'package:simplex_blender/src/domain/bank.dart';
@@ -60,12 +61,27 @@ class AppController extends ChangeNotifier {
         _banksLoadFailure = true;
       },
     );
+    CylinderDimensionMigration? migration;
     _settings = loadSettings(
       _storage,
       onFallback: (_) {
         _settingsLoadFailure = true;
       },
+      onCylinderDimensionsMigrated: (report) {
+        migration = report;
+      },
     );
+    if (migration != null) {
+      _cylinderMigrationNotice = cylinderMigrationNoticeMessage(migration!);
+      try {
+        // Persist the migrated keys so the next start has nothing to migrate
+        // and the notice is shown once. On failure the migrated settings stay
+        // in memory and the notice repeats on the next start.
+        saveSettings(_settings, _storage);
+      } on Object {
+        // Intentionally ignored: see comment above.
+      }
+    }
     _themePreference = loadThemePreference(_storage);
     _onboarding = loadOnboardingState(
       _storage,
@@ -101,6 +117,7 @@ class AppController extends ChangeNotifier {
 
   late List<Bank> _banks;
   late Settings _settings;
+  String? _cylinderMigrationNotice;
   late String _themePreference;
   late OnboardingState _onboarding;
   String _primaryScreen = 'blending';
@@ -151,6 +168,16 @@ class AppController extends ChangeNotifier {
     onboardingLoadFailure: _onboardingLoadFailure,
     bankInputFailureMessage: _bankInputFailure,
   );
+
+  /// One-time informational notice after saved cylinders gained dimensions
+  /// from the nearest standard cylinder. Null when there is nothing to show.
+  String? get cylinderMigrationNotice => _cylinderMigrationNotice;
+
+  void dismissCylinderMigrationNotice() {
+    if (_cylinderMigrationNotice == null) return;
+    _cylinderMigrationNotice = null;
+    notifyListeners();
+  }
 
   /// Sends `app_started`. Only the first call sends it, so one launch sends
   /// exactly one event.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:simplex_blender/src/controllers/app_controller.dart';
 import 'package:simplex_blender/src/controllers/blend_controller.dart';
+import 'package:simplex_blender/src/domain/cylinder_preset_text.dart';
 import 'package:simplex_blender/src/domain/gas_input.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
@@ -263,7 +264,12 @@ class _BlendingFormState extends State<BlendingForm> {
             ))
               DropdownMenuItem<String>(
                 value: entry.preset.name,
-                child: Text(entry.preset.name),
+                enabled: entry.preset.isComplete,
+                child: Text(
+                  entry.preset.isComplete
+                      ? entry.preset.name
+                      : '${entry.preset.name} (needs dimensions)',
+                ),
               ),
           ],
           onChanged: _selectCylinder,
@@ -714,8 +720,13 @@ String _cylinderRatingHint(CylinderPreset preset, String units) {
     'pressureBar',
     units,
   );
-  return '$volumeText $material cylinder, $mass empty assembly, '
+  final rating =
+      '$volumeText $material cylinder, $mass empty assembly, '
       'rated to $pressure.';
+  final geometry = cylinderGeometryText(preset);
+  return geometry == null
+      ? '$rating Needs diameter and length in Settings.'
+      : '$rating $geometry';
 }
 
 String _equipmentValue(double value, String quantity, String units) {

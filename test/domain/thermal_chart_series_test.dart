@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/domain/thermal_chart_series.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart' as domain;
 
+import '../support/tank_area.dart';
+
 const List<ThermalProtocolStep> protocolSteps = [
   ThermalProtocolStep(
     title: 'Drain / Vent Cylinder Gas',
@@ -851,6 +853,7 @@ void main() {
         physics: const domain.PhysicsInput(model: 'ideal', temperatureC: 9),
         thermal: const domain.ThermalInput(
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'air',
           ambientTemperatureC: 9,
           inletTemperatureC: 9,

@@ -5,12 +5,14 @@ import 'package:simplex_blender/src/controllers/app_controller.dart';
 import 'package:simplex_blender/src/controllers/blend_controller.dart';
 import 'package:simplex_blender/src/controllers/what_if_controller.dart';
 import 'package:simplex_blender/src/data/key_value_storage.dart';
+import 'package:simplex_blender/src/data/settings_storage.dart';
 import 'package:simplex_blender/src/domain/blend_defaults.dart';
 import 'package:simplex_blender/src/domain/interim_check.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 import 'package:simplex_blender/src/ui/settings/settings_screen.dart';
 import 'package:simplex_blender/src/ui/shell/app_shell.dart';
 
+import '../../support/legacy_cylinder_settings.dart';
 import '../../support/memory_storage.dart';
 
 class _FailingWrites extends MemoryStorage {
@@ -203,4 +205,43 @@ void main() {
       expect(wired.blend.interimMeasurementSignature, isNull);
     },
   );
+
+  testWidgets('migration notice is shown and can be dismissed', (tester) async {
+    final wired = _wire(
+      MemoryStorage(<String, String>{
+        SETTINGS_STORAGE_KEY: legacyCylinderSettingsJson(),
+      }),
+    );
+    await _pumpShell(tester, wired);
+    await tester.tap(find.text('Skip'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.textContaining('nearest standard cylinder'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('cylinder-migration-dismiss')),
+    );
+    await tester.pump();
+    expect(find.textContaining('nearest standard cylinder'), findsNothing);
+  });
+
+  testWidgets('migration notice Dismiss uses the banner text colour', (
+    tester,
+  ) async {
+    final wired = _wire(
+      MemoryStorage(<String, String>{
+        SETTINGS_STORAGE_KEY: legacyCylinderSettingsJson(),
+      }),
+    );
+    await _pumpShell(tester, wired);
+    await tester.tap(find.text('Skip'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final button = tester.widget<TextButton>(
+      find.byKey(const ValueKey<String>('cylinder-migration-dismiss')),
+    );
+    final foreground = button.style!.foregroundColor!.resolve(<WidgetState>{});
+    final bannerText = Theme.of(tester.element(find.byType(NavigationRail)))
+        .colorScheme
+        .onSecondaryContainer;
+    expect(foreground, bannerText);
+  });
 }

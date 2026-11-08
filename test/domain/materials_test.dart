@@ -34,7 +34,6 @@ void main() {
           for (final parameter in [
             thermal.defaultTankMassKg,
             thermal.specificHeatJPerKgK,
-            thermal.areaM2,
             thermal.airTauMinutes,
             thermal.waterTauMinutes,
           ]) {
@@ -135,6 +134,7 @@ void main() {
       );
       final thermal = <String, Object?>{
         'tankMaterial': preset['material'],
+        'tankSurfaceAreaM2': 0.3,
         'tankMassKg': preset['massKg'],
         'coolingMedium': 'air',
         'ambientTemperatureC': 20.0,

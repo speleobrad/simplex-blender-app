@@ -7,6 +7,7 @@ import '../analytics/analytics_events.dart';
 import '../domain/bank.dart';
 import '../domain/compare_recipe.dart';
 import '../domain/compare_run.dart';
+import '../domain/cylinder_geometry.dart';
 import '../domain/domain_error.dart';
 import '../domain/gas_input.dart';
 import '../domain/input_validation.dart';
@@ -16,7 +17,6 @@ import '../domain/settings.dart';
 import '../domain/thermodynamics.dart';
 import '../domain/what_if_scenario.dart';
 
-const String _selectPresetMessage = 'Select an available cylinder preset.';
 const String _gasCompositionMessage =
     'Initial oxygen and helium percentages must total no more than 100%.';
 const String _physicsModelMessage = 'Physics model must be ideal or vdw.';
@@ -635,7 +635,13 @@ class WhatIfController extends ChangeNotifier {
         const WhatIfError(
           rowId: null,
           field: 'cylinderPresetName',
-          message: _selectPresetMessage,
+          message: selectCylinderPresetMessage,
+        )
+      else if (!preset.isComplete)
+        WhatIfError(
+          rowId: null,
+          field: 'cylinderPresetName',
+          message: incompleteCylinderMessage(preset.name),
         ),
       for (final message in validateCalculatorInputs(
         CalculatorCylinder(
@@ -702,7 +708,12 @@ class WhatIfController extends ChangeNotifier {
     final oxygen = input.initialOxygenPercent;
     final helium = input.initialHeliumPercent;
     final ambient = input.ambientTemperatureC;
-    if (preset == null || oxygen == null || helium == null || ambient == null) {
+    final surfaceAreaM2 = input.tankSurfaceAreaM2;
+    if (preset == null ||
+        surfaceAreaM2 == null ||
+        oxygen == null ||
+        helium == null ||
+        ambient == null) {
       return null;
     }
     final initialPressureBar = input.initialPressureBar;
@@ -727,6 +738,7 @@ class WhatIfController extends ChangeNotifier {
         coolingMedium: input.coolingMedium,
         waterSubmersionPercent: input.waterSubmersionPercent,
         tankMassKg: input.tankMassKg,
+        tankSurfaceAreaM2: surfaceAreaM2,
         inletTemperatureC: input.inletTemperatureC,
         targetMediumTemperatureC: ambient,
         targetInWaterTemperatureC: input.inWaterTemperatureC,

@@ -17,6 +17,8 @@ const CylinderPreset cylinderPreset = CylinderPreset(
   massKg: 5.5,
   workingPressureBar: 200,
   hotOverfillPercent: 10,
+  diameterMm: 150,
+  lengthMm: 500,
 );
 
 const Bank bank = Bank(
@@ -37,9 +39,10 @@ Settings settings() =>
     DEFAULT_SETTINGS.copyWith(physics: const PhysicsSettings(model: 'vdw'));
 
 Map<String, Object?> fixedInput({
+  CylinderPreset preset = cylinderPreset,
   List<InterimMeasurement?> interimMeasurements = const <InterimMeasurement?>[],
 }) => buildCalculatorInput(
-  cylinderPreset: cylinderPreset,
+  cylinderPreset: preset,
   initialPressureBar: 80,
   initialOxygenPercent: 21,
   initialHeliumPercent: 35,
@@ -95,6 +98,7 @@ void main() {
         <String>[
           'tankMaterial',
           'tankMassKg',
+          'tankSurfaceAreaM2',
           'coolingMedium',
           'waterSubmersionPercent',
           'ambientTemperatureC',
@@ -128,7 +132,10 @@ void main() {
         'model': 'vdw',
         'temperatureC': 20.0,
       });
-      expect(input['thermal'], <String, Object?>{
+      final thermal = Map<String, Object?>.of(
+        input['thermal']! as Map<String, Object?>,
+      )..remove('tankSurfaceAreaM2');
+      expect(thermal, <String, Object?>{
         'tankMaterial': 'aluminium',
         'tankMassKg': 5.5,
         'coolingMedium': 'water',
@@ -142,7 +149,33 @@ void main() {
         'interimMeasurements': <Object?>[],
         'targetTemperatureC': 25.0,
       });
+      expect(
+        (input['thermal']! as Map<String, Object?>)['tankSurfaceAreaM2']!
+            as double,
+        closeTo(0.270962, 1e-5),
+      );
     });
+
+    test(
+      'leaves the tank surface null when the cylinder has no dimensions',
+      () {
+        final input = fixedInput(
+          preset: const CylinderPreset(
+            name: 'Test 12 L',
+            volumeL: 12,
+            material: 'aluminium',
+            massKg: 5.5,
+            workingPressureBar: 200,
+            hotOverfillPercent: 10,
+          ),
+        );
+
+        expect(
+          (input['thermal']! as Map<String, Object?>)['tankSurfaceAreaM2'],
+          isNull,
+        );
+      },
+    );
 
     test(
       'settings key carries the JS copySettings physics and pressure mode',

@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 
+import '../support/tank_area.dart';
+
 /// Booster-type transfer. `currentPressureBar` is the cylinder pressure the
 /// step starts from: the receiver for booster steps (JS `startPressureBar`) and
 /// the drained tank for salvage-booster steps. The booster source tank is held
@@ -56,6 +58,7 @@ TransferProfileInput profileInput({
     thermal: const ThermalInput(
       ambientTemperatureC: 20,
       tankMaterial: 'steel',
+      tankSurfaceAreaM2: steelTestAreaM2,
       coolingMedium: 'air',
       inletTemperatureC: 20,
     ),

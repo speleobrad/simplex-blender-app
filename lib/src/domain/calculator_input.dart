@@ -67,6 +67,9 @@ CalculatorInput buildCalculatorInput({
     'thermal': <String, Object?>{
       'tankMaterial': cylinderPreset.material,
       'tankMassKg': cylinderPreset.massKg,
+      'tankSurfaceAreaM2': cylinderPreset.isComplete
+          ? cylinderPreset.surfaceAreaM2
+          : null,
       'coolingMedium': coolingMedium,
       'waterSubmersionPercent': waterSubmersionPercent,
       'ambientTemperatureC': ambientTemperatureC,

@@ -1,9 +1,12 @@
+import 'dart:math' show pi;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/analytics/analytics.dart';
 import 'package:simplex_blender/src/controllers/blend_controller.dart';
 import 'package:simplex_blender/src/data/bank_storage.dart';
 import 'package:simplex_blender/src/domain/bank.dart';
 import 'package:simplex_blender/src/domain/cost.dart';
+import 'package:simplex_blender/src/domain/cylinder_geometry.dart';
 import 'package:simplex_blender/src/domain/interim_check.dart';
 import 'package:simplex_blender/src/domain/pressure_limits.dart';
 import 'package:simplex_blender/src/domain/pure_prices.dart';
@@ -97,6 +100,192 @@ void main() {
     expect(controller.lastResult!['feasible'], isTrue);
     expect(controller.lastInput, isNotNull);
   });
+
+  test('an incomplete cylinder preset is refused with a message', () {
+    const incomplete = CylinderPreset(
+      name: 'Catalina S80',
+      volumeL: 11.1,
+      material: 'aluminum',
+      massKg: 14.3,
+      workingPressureBar: 207,
+      hotOverfillPercent: 2,
+    );
+    final controller = _controller(
+      bankList: List<Bank>.of(DEFAULT_BANKS),
+      settings: DEFAULT_SETTINGS,
+      inputs: _defaultInputs().copyWith(cylinderPreset: incomplete),
+    );
+    final result = controller.lastResult!;
+    expect(result['feasible'], isFalse);
+    expect(
+      result.toString(),
+      contains(incompleteCylinderMessage(incomplete.name)),
+    );
+  });
+
+  test('a complete preset still calculates', () {
+    final controller = _controller(
+      bankList: List<Bank>.of(DEFAULT_BANKS),
+      settings: DEFAULT_SETTINGS,
+    );
+    expect(
+      controller.lastResult!.toString(),
+      isNot(contains(incompleteCylinderMessage(_catalinaS80().name))),
+    );
+  });
+
+  test('updateSharedInputs re-resolves an incomplete preset from settings', () {
+    const incomplete = CylinderPreset(
+      name: 'Catalina S80',
+      volumeL: 11.1,
+      material: 'aluminum',
+      massKg: 14.3,
+      workingPressureBar: 207,
+      hotOverfillPercent: 2,
+    );
+    final bankList = List<Bank>.of(DEFAULT_BANKS);
+    final controller = _controller(
+      bankList: bankList,
+      settings: DEFAULT_SETTINGS,
+      inputs: _defaultInputs().copyWith(cylinderPreset: incomplete),
+    );
+    expect(controller.lastResult!['feasible'], isFalse);
+
+    controller.updateSharedInputs(banks: bankList, settings: DEFAULT_SETTINGS);
+
+    expect(
+      controller.lastResult!.toString(),
+      isNot(contains(incompleteCylinderMessage('Catalina S80'))),
+    );
+    expect(controller.lastResult!['feasible'], isTrue);
+  });
+
+  test(
+    'updateSharedInputs uses the edited dimensions of the selected preset',
+    () {
+      final bankList = List<Bank>.of(DEFAULT_BANKS);
+      final controller = _controller(
+        bankList: bankList,
+        settings: DEFAULT_SETTINGS,
+      );
+      final edited = DEFAULT_SETTINGS.copyWith(
+        cylinderPresets: <CylinderPreset>[
+          for (final preset in DEFAULT_SETTINGS.cylinderPresets)
+            preset.name == 'Catalina S80'
+                ? preset.copyWith(diameterMm: 150, lengthMm: 400)
+                : preset,
+        ],
+      );
+
+      controller.updateSharedInputs(banks: bankList, settings: edited);
+
+      // Hand computation: D = 0.150 m, L = 0.400 m; pi*D*L + pi*D^2/2.
+      const expectedArea = pi * 0.150 * 0.400 + pi * 0.150 * 0.150 / 2;
+      final thermal = controller.lastInput!['thermal']! as Map<String, Object?>;
+      expect(
+        thermal['tankSurfaceAreaM2']! as double,
+        closeTo(expectedArea, 1e-9),
+      );
+    },
+  );
+
+  test('deleting the selected preset refuses Optimize with a message', () {
+    final bankList = List<Bank>.of(DEFAULT_BANKS);
+    final controller = _controller(
+      bankList: bankList,
+      settings: DEFAULT_SETTINGS,
+    );
+    expect(controller.lastResult!['feasible'], isTrue);
+    final withoutPreset = DEFAULT_SETTINGS.copyWith(
+      cylinderPresets: <CylinderPreset>[
+        for (final preset in DEFAULT_SETTINGS.cylinderPresets)
+          if (preset.name != 'Catalina S80') preset,
+      ],
+    );
+
+    controller.updateSharedInputs(banks: bankList, settings: withoutPreset);
+
+    final result = controller.lastResult!;
+    expect(result['feasible'], isFalse);
+    expect(result.toString(), contains(selectCylinderPresetMessage));
+    // Physics did not run: no protocol steps and no blend.
+    expect(result['protocolSteps'], isEmpty);
+    expect(result['blend'], isNull);
+  });
+
+  test('renaming the selected preset refuses Optimize with a message', () {
+    final bankList = List<Bank>.of(DEFAULT_BANKS);
+    final controller = _controller(
+      bankList: bankList,
+      settings: DEFAULT_SETTINGS,
+    );
+    final renamed = DEFAULT_SETTINGS.copyWith(
+      cylinderPresets: <CylinderPreset>[
+        for (final preset in DEFAULT_SETTINGS.cylinderPresets)
+          if (preset.name == 'Catalina S80')
+            preset.copyWith(name: 'Catalina S80 old')
+          else
+            preset,
+      ],
+    );
+
+    controller.updateSharedInputs(banks: bankList, settings: renamed);
+
+    final result = controller.lastResult!;
+    expect(result['feasible'], isFalse);
+    expect(result.toString(), contains(selectCylinderPresetMessage));
+    expect(result['protocolSteps'], isEmpty);
+    expect(result['blend'], isNull);
+  });
+
+  test('re-adding a refused preset name recovers Optimize', () {
+    final bankList = List<Bank>.of(DEFAULT_BANKS);
+    final controller = _controller(
+      bankList: bankList,
+      settings: DEFAULT_SETTINGS,
+    );
+    final withoutPreset = DEFAULT_SETTINGS.copyWith(
+      cylinderPresets: <CylinderPreset>[
+        for (final preset in DEFAULT_SETTINGS.cylinderPresets)
+          if (preset.name != 'Catalina S80') preset,
+      ],
+    );
+    controller.updateSharedInputs(banks: bankList, settings: withoutPreset);
+    expect(controller.lastResult!['feasible'], isFalse);
+
+    controller.updateSharedInputs(banks: bankList, settings: DEFAULT_SETTINGS);
+
+    expect(controller.lastResult!['feasible'], isTrue);
+    expect(
+      controller.lastResult!.toString(),
+      isNot(contains(selectCylinderPresetMessage)),
+    );
+  });
+
+  test(
+    'an existing selected preset still calculates after settings change',
+    () {
+      final bankList = List<Bank>.of(DEFAULT_BANKS);
+      final controller = _controller(
+        bankList: bankList,
+        settings: DEFAULT_SETTINGS,
+      );
+      final resent = DEFAULT_SETTINGS.copyWith(
+        cylinderPresets: <CylinderPreset>[
+          for (final preset in DEFAULT_SETTINGS.cylinderPresets)
+            if (preset.name == 'Catalina S80') preset.copyWith() else preset,
+        ],
+      );
+
+      controller.updateSharedInputs(banks: bankList, settings: resent);
+
+      expect(controller.lastResult!['feasible'], isTrue);
+      expect(
+        controller.lastResult!.toString(),
+        isNot(contains('Select an available cylinder preset.')),
+      );
+    },
+  );
 
   test(
     'a successful Optimize sends one blend_calculated event with mode optimize',
