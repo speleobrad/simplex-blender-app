@@ -60,7 +60,7 @@ Migrations (`normalizeSettingsJson`), in order:
 3. `addDefaultPressureLimitPolicy`
 4. `addDefaultPhysics`
 5. `addDefaultCylinderPresets`: legacy `volumePresets` convert via `legacyVolumePresetsToCylinders`. Each becomes `'<n> L Steel 232 bar'`, steel, 14 kg, 232 bar working pressure. `hotOverfillPercent` is filled only when absent.
-- Cylinder dimensions run after `addDefaultCylinderPresets`: `correctLuxferS80Volume`, then `addNearestCylinderDimensions` (`settings_migrations.dart`). Rules: steel presets get exact 3 L dimensions; aluminium presets get the nearest standard geometry with no cutoff; a preset with explicit `null` dimensions is skipped.
+- Cylinder dimensions run after `addDefaultCylinderPresets`: `correctLuxferS80Volume`, then `addNearestCylinderDimensions` (`settings_migrations.dart`). Rules: only steel presets at exactly 3 L get dimensions. Other steel sizes and every other non-aluminium material (for example carbon-wrapped-steel) get none, and stay incomplete with an explicit `null` on the next save. Aluminium presets get the nearest standard geometry with no cutoff; ties go to the same name, then the smaller volume, then the earlier default. A preset with explicit `null` dimensions is skipped.
 - `loadSettings` does not write migrated dimensions back. `AppController` writes them back and shows a one-time notice only when a preset received dimensions. The web app has no dimensions, so this is a parity divergence. Presets imported from an external file without dimensions are incomplete. The Luxfer S80 default is corrected to 11.1 L.
 6. `addDefaultEquipmentPresets`: MUST run after `addDefaultBooster`.
 7. `addDefaultInterimPressureTolerance`
