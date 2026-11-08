@@ -1,12 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/analytics/analytics.dart';
 import 'package:simplex_blender/src/controllers/app_controller.dart';
 import 'package:simplex_blender/src/data/analytics_storage.dart';
+import 'package:simplex_blender/src/data/settings_storage.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/ui/settings/settings_screen.dart';
 import 'package:simplex_blender/src/ui/shell/tour_targets.dart';
 
+import '../../support/legacy_cylinder_settings.dart';
 import '../../support/memory_storage.dart';
 
 class _NoopAnalytics implements Analytics {
@@ -242,5 +246,40 @@ void main() {
       app.settings.cylinderPresets.length,
       DEFAULT_SETTINGS.cylinderPresets.length,
     );
+  });
+
+  testWidgets('a legacy preset with null dimensions saves untouched', (
+    tester,
+  ) async {
+    final storage = MemoryStorage(<String, String>{
+      SETTINGS_STORAGE_KEY: legacyCylinderSettingsJson(),
+    });
+    final app = _app(storage);
+    expect(_cylinderNamed(app, 'Steel 12').isComplete, isFalse);
+    app.setSettingsCategory('cylinder-presets');
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(800, 2400);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await _pump(tester, app);
+
+    expect(
+      find.byKey(const ValueKey<String>('cyl-incomplete-1')),
+      findsOneWidget,
+    );
+    await _tapAction(tester, 'Save settings');
+
+    expect(find.textContaining('must be greater than 0 mm'), findsNothing);
+    final steel = _cylinderNamed(app, 'Steel 12');
+    expect(steel.diameterMm, isNull);
+    expect(steel.lengthMm, isNull);
+    final stored = jsonDecode(
+      storage.values[SETTINGS_STORAGE_KEY]!,
+    ) as Map<String, Object?>;
+    final presets = stored['cylinderPresets']! as List<Object?>;
+    final storedSteel = presets[1]! as Map<String, Object?>;
+    expect(storedSteel['name'], 'Steel 12');
+    expect(storedSteel['diameterMm'], isNull);
+    expect(storedSteel['lengthMm'], isNull);
   });
 }

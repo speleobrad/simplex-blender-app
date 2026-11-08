@@ -179,6 +179,13 @@ void main() {
           .first,
     );
     expect(item.enabled, isFalse);
+
+    blend.setInputs(blend.inputs.copyWith(cylinderPreset: legacy));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Needs diameter and length in Settings.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('shows tank submersion once the medium is water', (tester) async {

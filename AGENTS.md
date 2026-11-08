@@ -14,7 +14,7 @@ flutter test                                  # one file: flutter test test/doma
 
 ## Hard rules
 
-- Ported logic: formulas, constants, tolerances, iteration limits, and branch order match the JS app. Do not refactor the math. Exception: the heat-transfer surface comes from cylinder dimensions (see `docs/superpowers/specs/2026-11-08-cylinder-dimensions-design.md`). See `docs/agents/architecture.md`.
+- Ported logic: formulas, constants, tolerances, iteration limits, and branch order match the JS app. Do not refactor the math. Exception: the heat-transfer surface comes from cylinder dimensions (`diameterMm`, `lengthMm`), an approved divergence from the JS app's fixed per-material area. See `docs/agents/optimizer-physics.md` and `docs/agents/architecture.md`.
 - `lib/src/domain/` never imports `package:flutter`.
 - Controllers do not import each other. `AppController` owns shared state. See `docs/agents/controllers-state.md`.
 - Analytics sends only events defined in `lib/src/analytics/analytics_events.dart`, with closed values. Never send bank names, gas values, pressures, prices, or free text. See `docs/agents/analytics.md`.
