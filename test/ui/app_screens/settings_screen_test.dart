@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/analytics/analytics.dart';
 import 'package:simplex_blender/src/controllers/app_controller.dart';
 import 'package:simplex_blender/src/data/analytics_storage.dart';
+import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/ui/settings/settings_screen.dart';
 import 'package:simplex_blender/src/ui/shell/tour_targets.dart';
 
@@ -68,6 +69,13 @@ Future<void> _tapAction(WidgetTester tester, String label) async {
   await tester.tap(button);
   await tester.pumpAndSettle();
 }
+
+Finder _firstCardField(String label) => find.descendant(
+  of: find.widgetWithText(TextFormField, label).first,
+  matching: find.byType(EditableText),
+);
+CylinderPreset _cylinderNamed(AppController app, String name) =>
+    app.settings.cylinderPresets.firstWhere((p) => p.name == name);
 
 void main() {
   testWidgets('Cancel discards an unsaved edit', (tester) async {
@@ -160,5 +168,79 @@ void main() {
 
     expect(app.analyticsEnabled, isFalse);
     expect(storage.getItem(analyticsStorageKey), '{"enabled":false}');
+  });
+
+  testWidgets('cylinder editor shows dimensions, surface, and plausibility', (
+    tester,
+  ) async {
+    final app = _app();
+    app.setSettingsCategory('cylinder-presets');
+    await _pump(tester, app);
+
+    // First card by volume is Catalina S13: 111.3 mm x 325 mm,
+    // pi*D*L + pi*D^2/2 = 0.133100 m^2 -> 0.133.
+    expect(_firstCardField('Diameter (mm)'), findsOneWidget);
+    expect(
+      find.textContaining('Heat-transfer surface: 0.133 m²'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('too small'), findsNothing);
+  });
+
+  testWidgets('clearing a dimension blocks saving with a message', (
+    tester,
+  ) async {
+    final app = _app();
+    app.setSettingsCategory('cylinder-presets');
+    await _pump(tester, app);
+
+    await tester.enterText(_firstCardField('Diameter (mm)'), '');
+    await tester.pump();
+    await _tapAction(tester, 'Save settings');
+    expect(
+      find.textContaining('diameter must be greater than 0 mm'),
+      findsOneWidget,
+    );
+    expect(_cylinderNamed(app, 'Catalina S13').diameterMm, 111.3);
+  });
+
+  testWidgets('an implausible volume is flagged but still saves', (
+    tester,
+  ) async {
+    final app = _app();
+    app.setSettingsCategory('cylinder-presets');
+    await _pump(tester, app);
+
+    await tester.enterText(_firstCardField('Diameter (mm)'), '186');
+    await tester.enterText(_firstCardField('Length, no valve (mm)'), '500');
+    await tester.pump();
+    expect(find.textContaining('too small'), findsOneWidget);
+    await _tapAction(tester, 'Save settings');
+    expect(_cylinderNamed(app, 'Catalina S13').diameterMm, 186);
+  });
+
+  testWidgets('Add cylinder starts incomplete and cannot be saved', (
+    tester,
+  ) async {
+    final app = _app();
+    app.setSettingsCategory('cylinder-presets');
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(800, 2400);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await _pump(tester, app);
+
+    await _tapAction(tester, 'Add cylinder');
+    expect(
+      find.textContaining('“New cylinder” diameter must be greater than 0 mm'),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(find.text('Save settings'));
+    await tester.tap(find.text('Save settings'));
+    await tester.pump();
+    expect(
+      app.settings.cylinderPresets.length,
+      DEFAULT_SETTINGS.cylinderPresets.length,
+    );
   });
 }

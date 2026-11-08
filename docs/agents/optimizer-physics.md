@@ -37,6 +37,7 @@ Files in the order a request flows through them. Helper files are called from th
 
 - `lib/src/domain/physics.dart`: gas law. See section 4.
 - `lib/src/domain/thermodynamics.dart`: thermal model and typed records (`PhysicsInput`, `ThermalInput`, `ProtocolStep`, `ThermalStep`, `ThermalProtocolResult`). Simulations: `simulateThermalProtocol`, `simulateCompareProtocol`, `calculateBoosterFillRate`, `estimateTransferTemperature`, `coolingTimeConstantMinutes`.
+- Heat-transfer area is `π·D·L + π·D²/2` from the cylinder preset (`lib/src/domain/cylinder_geometry.dart`), passed as `ThermalInput.tankSurfaceAreaM2`. `MaterialThermal.areaM2` no longer exists. This is an approved divergence from the JS app's fixed per-material area (see `docs/superpowers/specs/2026-11-08-cylinder-dimensions-design.md`). Tau, `h`, and the ODE are unchanged. `estimateTransferTemperature` needs `tankSurfaceAreaM2`.
 - `lib/src/domain/salvage.dart`: salvage economics and selection. `selectSalvageVariant`, `salvageTransferMoles`, `applyDrawToBank`, `isSalvageReceiver`, `SalvageVariant`, `SalvageBaseline`, `ReceiverCandidate`.
 - `lib/src/domain/simplex.dart`: `solveTwoPhaseSimplex`, port of `js/simplex.js`.
 - `lib/src/domain/leftover_attractiveness.dart`: `leftoverAttractiveness`, `leftoverReachability`, `standardTargets`.

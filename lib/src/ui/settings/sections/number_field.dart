@@ -35,6 +35,9 @@ String _formatSettingNumber(double value) =>
 String _formatFee(double value) =>
     value.isFinite ? value.toStringAsFixed(2) : '';
 
+String _formatDimension(double value) =>
+    value.isFinite ? value.toStringAsFixed(1) : '';
+
 /// JS `Math.round(value * 100) / 100` for flat operation fees.
 double _roundFee(double value) =>
     value.isFinite ? (value * 100 + 0.5).floorToDouble() / 100 : value;

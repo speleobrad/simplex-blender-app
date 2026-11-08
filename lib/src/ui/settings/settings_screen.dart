@@ -7,6 +7,7 @@ import '../../analytics/analytics_events.dart';
 import '../../controllers/app_controller.dart';
 import '../../data/preset_source.dart';
 import '../../domain/cost.dart';
+import '../../domain/cylinder_geometry.dart';
 import '../../domain/materials.dart';
 import '../../domain/preset_import.dart';
 import '../../domain/settings.dart';
