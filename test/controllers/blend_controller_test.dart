@@ -1,3 +1,5 @@
+import 'dart:math' show pi;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/analytics/analytics.dart';
 import 'package:simplex_blender/src/controllers/blend_controller.dart';
@@ -128,9 +130,94 @@ void main() {
     );
     expect(
       controller.lastResult!.toString(),
-      isNot(contains('needs a diameter and length')),
+      isNot(contains(incompleteCylinderMessage(_catalinaS80().name))),
     );
   });
+
+  test('updateSharedInputs re-resolves an incomplete preset from settings', () {
+    const incomplete = CylinderPreset(
+      name: 'Catalina S80',
+      volumeL: 11.1,
+      material: 'aluminum',
+      massKg: 14.3,
+      workingPressureBar: 207,
+      hotOverfillPercent: 2,
+    );
+    final bankList = List<Bank>.of(DEFAULT_BANKS);
+    final controller = _controller(
+      bankList: bankList,
+      settings: DEFAULT_SETTINGS,
+      inputs: _defaultInputs().copyWith(cylinderPreset: incomplete),
+    );
+    expect(controller.lastResult!['feasible'], isFalse);
+
+    controller.updateSharedInputs(banks: bankList, settings: DEFAULT_SETTINGS);
+
+    expect(
+      controller.lastResult!.toString(),
+      isNot(contains(incompleteCylinderMessage('Catalina S80'))),
+    );
+    expect(controller.lastResult!['feasible'], isTrue);
+  });
+
+  test(
+    'updateSharedInputs uses the edited dimensions of the selected preset',
+    () {
+      final bankList = List<Bank>.of(DEFAULT_BANKS);
+      final controller = _controller(
+        bankList: bankList,
+        settings: DEFAULT_SETTINGS,
+      );
+      final edited = DEFAULT_SETTINGS.copyWith(
+        cylinderPresets: <CylinderPreset>[
+          for (final preset in DEFAULT_SETTINGS.cylinderPresets)
+            preset.name == 'Catalina S80'
+                ? preset.copyWith(diameterMm: 150, lengthMm: 400)
+                : preset,
+        ],
+      );
+
+      controller.updateSharedInputs(banks: bankList, settings: edited);
+
+      // Hand computation: D = 0.150 m, L = 0.400 m; pi*D*L + pi*D^2/2.
+      const expectedArea = pi * 0.150 * 0.400 + pi * 0.150 * 0.150 / 2;
+      final thermal = controller.lastInput!['thermal']! as Map<String, Object?>;
+      expect(
+        thermal['tankSurfaceAreaM2']! as double,
+        closeTo(expectedArea, 1e-9),
+      );
+    },
+  );
+
+  test(
+    'updateSharedInputs keeps the previous preset when its name is gone',
+    () {
+      final bankList = List<Bank>.of(DEFAULT_BANKS);
+      final controller = _controller(
+        bankList: bankList,
+        settings: DEFAULT_SETTINGS,
+      );
+      final before =
+          (controller.lastInput!['thermal']!
+                  as Map<String, Object?>)['tankSurfaceAreaM2']!
+              as double;
+      final renamed = DEFAULT_SETTINGS.copyWith(
+        cylinderPresets: <CylinderPreset>[
+          for (final preset in DEFAULT_SETTINGS.cylinderPresets)
+            if (preset.name != 'Catalina S80') preset,
+        ],
+      );
+
+      controller.updateSharedInputs(banks: bankList, settings: renamed);
+
+      final after =
+          (controller.lastInput!['thermal']!
+                  as Map<String, Object?>)['tankSurfaceAreaM2']!
+              as double;
+      expect(after, closeTo(before, 1e-12));
+      expect(controller.lastInput!['cylinder'], isNotNull);
+    },
+  );
 
   test(
     'a successful Optimize sends one blend_calculated event with mode optimize',

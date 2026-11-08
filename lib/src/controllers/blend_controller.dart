@@ -99,6 +99,7 @@ class BlendController extends ChangeNotifier {
     };
     _banks = banks;
     _settings = settings;
+    _inputs = _inputsWithSettingsPreset(_inputs, settings);
     final currentInput = _buildInput(interimMeasurements);
     final nonPriceChanged =
         previousInput == null ||
@@ -110,6 +111,21 @@ class BlendController extends ChangeNotifier {
     }
     _pruneBankSuggestions();
     recalculate();
+  }
+
+  /// Replaces the selected cylinder preset with the one of the same name in
+  /// [settings], so edits made in Settings reach Blending. The current preset
+  /// is kept when the name no longer exists.
+  static BlendInputs _inputsWithSettingsPreset(
+    BlendInputs inputs,
+    Settings settings,
+  ) {
+    for (final preset in settings.cylinderPresets) {
+      if (preset.name == inputs.cylinderPreset.name) {
+        return inputs.copyWith(cylinderPreset: preset);
+      }
+    }
+    return inputs;
   }
 
   /// JS `recalculate()` for the Optimize result. Readings are cleared when a
