@@ -5,6 +5,8 @@ import 'package:simplex_blender/src/domain/thermodynamics.dart';
 
 import 'optimizer_fixtures.dart';
 
+import '../support/tank_area.dart';
+
 void main() {
   test('maximum-pressure fallback uses complementary banks to preserve the exact target fractions', () {
     final result = optimizeBlend(<String, Object?>{
@@ -860,6 +862,7 @@ void main() {
       'physics': _idealPhysics(),
       'thermal': <String, Object?>{
         'tankMaterial': 'steel',
+        'tankSurfaceAreaM2': steelTestAreaM2,
         'coolingMedium': 'air',
         'ambientTemperatureC': 20.0,
         'waitMode': 'minutes',
@@ -1075,6 +1078,7 @@ void main() {
       'physics': _idealPhysics(),
       'thermal': <String, Object?>{
         'tankMaterial': 'steel',
+        'tankSurfaceAreaM2': steelTestAreaM2,
         'coolingMedium': 'air',
         'ambientTemperatureC': 20.0,
         'inletTemperatureC': 40.0,
@@ -1488,6 +1492,7 @@ void main() {
         'physics': _idealPhysics(),
         'thermal': <String, Object?>{
           'tankMaterial': 'steel',
+          'tankSurfaceAreaM2': steelTestAreaM2,
           'coolingMedium': 'air',
           'ambientTemperatureC': 20.0,
           'inletTemperatureC': 20.0,
@@ -1524,6 +1529,7 @@ void main() {
         'physics': _idealPhysics(),
         'thermal': <String, Object?>{
           'tankMaterial': 'steel',
+          'tankSurfaceAreaM2': steelTestAreaM2,
           'coolingMedium': 'air',
           'ambientTemperatureC': 20.0,
           'waitMode': 'minutes',
@@ -1567,6 +1573,7 @@ void main() {
       'physics': <String, Object?>{'model': 'vdw', 'temperatureC': 25.0},
       'thermal': <String, Object?>{
         'tankMaterial': 'steel',
+        'tankSurfaceAreaM2': steelTestAreaM2,
         'coolingMedium': 'water',
         'ambientTemperatureC': 25.0,
         'inletTemperatureC': 25.0,
@@ -1635,6 +1642,7 @@ void main() {
         'physics': _idealPhysics(),
         'thermal': <String, Object?>{
           'tankMaterial': 'steel',
+          'tankSurfaceAreaM2': steelTestAreaM2,
           'coolingMedium': 'air',
           'ambientTemperatureC': 30.0,
           'inletTemperatureC': 29.0,
@@ -2042,6 +2050,7 @@ Map<String, Object?> _warningInput([double maxCompressorPressureBar = 232]) =>
       'physics': _idealPhysics(),
       'thermal': <String, Object?>{
         'tankMaterial': 'steel',
+        'tankSurfaceAreaM2': steelTestAreaM2,
         'coolingMedium': 'air',
         'ambientTemperatureC': 20.0,
         'inletTemperatureC': 40.0,
@@ -2075,6 +2084,7 @@ Map<String, Object?> _thermalAirWait({
   required double waitMinutes,
 }) => <String, Object?>{
   'tankMaterial': 'steel',
+  'tankSurfaceAreaM2': steelTestAreaM2,
   'coolingMedium': 'air',
   'ambientTemperatureC': 20.0,
   'inletTemperatureC': inletTemperatureC,

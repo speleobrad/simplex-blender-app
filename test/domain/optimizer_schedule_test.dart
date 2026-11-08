@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/domain/optimizer.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 
+import '../support/tank_area.dart';
+
 void main() {
   final stallingSteps = <ProtocolStep>[
     const ProtocolStep(
@@ -27,6 +29,7 @@ void main() {
   const thermal = ThermalInput(
     ambientTemperatureC: 20,
     tankMaterial: 'steel',
+    tankSurfaceAreaM2: steelTestAreaM2,
     coolingMedium: 'air',
     inletTemperatureC: 40,
     targetMediumTemperatureC: 20,

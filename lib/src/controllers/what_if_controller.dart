@@ -727,6 +727,7 @@ class WhatIfController extends ChangeNotifier {
         coolingMedium: input.coolingMedium,
         waterSubmersionPercent: input.waterSubmersionPercent,
         tankMassKg: input.tankMassKg,
+        tankSurfaceAreaM2: input.tankSurfaceAreaM2 ?? double.nan,
         inletTemperatureC: input.inletTemperatureC,
         targetMediumTemperatureC: ambient,
         targetInWaterTemperatureC: input.inWaterTemperatureC,

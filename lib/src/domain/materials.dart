@@ -5,14 +5,12 @@ class MaterialThermal {
   const MaterialThermal({
     required this.defaultTankMassKg,
     required this.specificHeatJPerKgK,
-    required this.areaM2,
     required this.airTauMinutes,
     required this.waterTauMinutes,
   });
 
   final double defaultTankMassKg;
   final double specificHeatJPerKgK;
-  final double areaM2;
   final double airTauMinutes;
   final double waterTauMinutes;
 
@@ -21,7 +19,6 @@ class MaterialThermal {
       other is MaterialThermal &&
       other.defaultTankMassKg == defaultTankMassKg &&
       other.specificHeatJPerKgK == specificHeatJPerKgK &&
-      other.areaM2 == areaM2 &&
       other.airTauMinutes == airTauMinutes &&
       other.waterTauMinutes == waterTauMinutes;
 
@@ -29,7 +26,6 @@ class MaterialThermal {
   int get hashCode => Object.hash(
     defaultTankMassKg,
     specificHeatJPerKgK,
-    areaM2,
     airTauMinutes,
     waterTauMinutes,
   );
@@ -67,7 +63,6 @@ class MaterialDefinition {
 const MaterialThermal _steelThermal = MaterialThermal(
   defaultTankMassKg: 14,
   specificHeatJPerKgK: 490,
-  areaM2: 0.45,
   airTauMinutes: 18,
   waterTauMinutes: 3.5,
 );
@@ -81,7 +76,6 @@ const Map<String, MaterialDefinition> materials = {
     thermal: MaterialThermal(
       defaultTankMassKg: 14.2,
       specificHeatJPerKgK: 900,
-      areaM2: 0.48,
       airTauMinutes: 25,
       waterTauMinutes: 5,
     ),

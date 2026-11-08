@@ -457,6 +457,7 @@ TransferProfileResult? _solveSalvageBoosterProfile(
     coolingMedium: input.thermal.coolingMedium,
     waterSubmersionPercent: input.thermal.waterSubmersionPercent,
     tankMassKg: input.thermal.tankMassKg,
+    tankSurfaceAreaM2: input.thermal.tankSurfaceAreaM2,
     ambientTemperatureC: ambientTemperatureC,
     inletTemperatureC: input.inletTemperatureC,
   );
@@ -540,6 +541,7 @@ TransferProfileResult? _computeTransferProfile(TransferProfileInput input) {
         coolingMedium: input.thermal.coolingMedium,
         waterSubmersionPercent: input.thermal.waterSubmersionPercent,
         tankMassKg: input.thermal.tankMassKg,
+        tankSurfaceAreaM2: input.thermal.tankSurfaceAreaM2,
         ambientTemperatureC: input.thermal.ambientTemperatureC,
         inletTemperatureC: input.inletTemperatureC,
       );
@@ -654,6 +656,7 @@ String _transferProfileKey(TransferProfileInput input) {
     _transferProfileKeyText(thermal.coolingMedium),
     _transferProfileKeyNumber(thermal.waterSubmersionPercent),
     _transferProfileKeyNumber(thermal.tankMassKg),
+    _transferProfileKeyNumber(thermal.tankSurfaceAreaM2),
     _transferProfileKeyNumber(booster.cylinderVolumeCm3),
     _transferProfileKeyNumber(booster.oxygenBoostBpm),
     _transferProfileKeyNumber(booster.otherBoostBpm),

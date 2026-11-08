@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:simplex_blender/src/domain/domain_error.dart';
 import 'package:simplex_blender/src/domain/materials.dart';
 import 'package:simplex_blender/src/domain/physics.dart';
 
@@ -83,6 +84,7 @@ class InterimMeasurement {
 class ThermalInput {
   const ThermalInput({
     required this.ambientTemperatureC,
+    required this.tankSurfaceAreaM2,
     this.tankMaterial,
     this.coolingMedium,
     this.waterSubmersionPercent,
@@ -97,6 +99,7 @@ class ThermalInput {
   });
 
   final double ambientTemperatureC;
+  final double tankSurfaceAreaM2;
   final String? tankMaterial;
   final String? coolingMedium;
   final double? waterSubmersionPercent;
@@ -940,6 +943,7 @@ List<PressureProjection> projectPressureAtTemperatures({
 
 List<TemperatureSample> _estimateTransferTemperatureSamples({
   required double startTemperatureC,
+  required double tankSurfaceAreaM2,
   double? startPressureBar,
   double? addedPressureBar,
   double? fillTimeMinutes,
@@ -980,7 +984,12 @@ List<TemperatureSample> _estimateTransferTemperatureSamples({
   final defaultTankMassKg = materialParams.defaultTankMassKg;
   final tankMass = math.max(0.1, _orFallback(tankMassKg, defaultTankMassKg));
   final metalSpecificHeat = materialParams.specificHeatJPerKgK;
-  final areaM2 = materialParams.areaM2;
+  if (!tankSurfaceAreaM2.isFinite || tankSurfaceAreaM2 <= 0) {
+    throw const DomainError(
+      'Cylinder diameter and length are required to model heat transfer.',
+    );
+  }
+  final areaM2 = tankSurfaceAreaM2;
   final wetFraction = _wetSurfaceFraction(waterSubmersionPercent);
   final heatTransferCoefficient = coolingMedium == 'water'
       ? wetFraction * heatTransferWaterWPerM2K +
@@ -1060,6 +1069,7 @@ List<TemperatureSample> _estimateTransferTemperatureSamples({
 /// which in turn defaults to `startTemperatureC`.
 double estimateTransferTemperature({
   required double startTemperatureC,
+  required double tankSurfaceAreaM2,
   double? startPressureBar,
   double? addedPressureBar,
   double? fillTimeMinutes,
@@ -1086,6 +1096,7 @@ double estimateTransferTemperature({
     coolingMedium: coolingMedium,
     waterSubmersionPercent: waterSubmersionPercent,
     tankMassKg: tankMassKg,
+    tankSurfaceAreaM2: tankSurfaceAreaM2,
     ambientTemperatureC: ambient,
     inletTemperatureC: inletTemperatureC ?? ambient,
   ).last.temperatureC;
@@ -1390,6 +1401,7 @@ _TransferTimeline _transferTimeline({
           coolingMedium: thermal.coolingMedium,
           waterSubmersionPercent: thermal.waterSubmersionPercent,
           tankMassKg: thermal.tankMassKg,
+          tankSurfaceAreaM2: thermal.tankSurfaceAreaM2,
           ambientTemperatureC: thermal.ambientTemperatureC,
           inletTemperatureC: inletTemperatureC,
         )

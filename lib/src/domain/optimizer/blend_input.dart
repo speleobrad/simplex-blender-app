@@ -137,6 +137,7 @@ ThermalInput? _parseThermal(Object? raw) {
   }
   return ThermalInput(
     ambientTemperatureC: _numberOrNan(raw['ambientTemperatureC']),
+    tankSurfaceAreaM2: _numberOrNan(raw['tankSurfaceAreaM2']),
     tankMaterial: _stringOrNull(raw['tankMaterial']),
     coolingMedium: _stringOrNull(raw['coolingMedium']),
     waterSubmersionPercent: _numberOrNull(raw['waterSubmersionPercent']),

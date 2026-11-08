@@ -47,6 +47,8 @@ const CylinderPreset catalinaS80 = CylinderPreset(
   massKg: 14.3,
   workingPressureBar: 207,
   hotOverfillPercent: 2,
+  diameterMm: 184.2,
+  lengthMm: 658,
 );
 
 WhatIfScenario initializedScenario() => createWhatIfScenario().copyWith(
@@ -108,6 +110,7 @@ ThermalInput thermalInputOf(WhatIfInput input) => ThermalInput(
   waterSubmersionPercent: input.waterSubmersionPercent,
   tankMassKg: input.tankMassKg,
   inletTemperatureC: input.inletTemperatureC,
+  tankSurfaceAreaM2: input.tankSurfaceAreaM2 ?? double.nan,
 );
 
 void main() {
@@ -167,10 +170,40 @@ void main() {
     expect(input.cylinderPreset?.volumeL, 11.1);
     expect(input.tankMaterial, 'aluminum');
     expect(input.tankMassKg, 14.3);
+    expect(input.tankSurfaceAreaM2, closeTo(0.434069, 1e-5));
     expect(input.inWaterTemperatureC, 10);
     expect(input.waterSubmersionPercent, 40);
     expect(input.inletTemperatureC, 33);
   });
+
+  test(
+    'scenario input has no tank surface when the cylinder has no dimensions',
+    () {
+      final scenario = createWhatIfScenario().copyWith(
+        initialized: true,
+        start: snapshotBlending(),
+      );
+      final settings = copySettings(DEFAULT_SETTINGS).copyWith(
+        cylinderPresets: const <CylinderPreset>[
+          CylinderPreset(
+            name: 'Catalina S80',
+            volumeL: 11.1,
+            material: 'aluminum',
+            massKg: 14.3,
+            workingPressureBar: 207,
+            hotOverfillPercent: 2,
+          ),
+        ],
+      );
+      final input = buildWhatIfInput(
+        scenario,
+        settings: settings,
+        banks: const <Bank>[],
+        inletTemperatureC: 33,
+      );
+      expect(input.tankSurfaceAreaM2, isNull);
+    },
+  );
 
   test('in-water projection uses the explicit scenario temperature', () {
     final projection = projectWhatIfInWater(

@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simplex_blender/src/domain/domain_error.dart';
 import 'package:simplex_blender/src/domain/physics.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
+
+import '../support/tank_area.dart';
 
 GasMixPercent _mix(double oxygenPercent, double heliumPercent) =>
     GasMixPercent(oxygenPercent: oxygenPercent, heliumPercent: heliumPercent);
@@ -62,6 +65,7 @@ ThermalProtocolResult _profiledBoosterSimulation({
   physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
   thermal: const ThermalInput(
     tankMaterial: 'steel',
+    tankSurfaceAreaM2: steelTestAreaM2,
     coolingMedium: 'air',
     ambientTemperatureC: 20,
     inletTemperatureC: 20,
@@ -289,6 +293,7 @@ void main() {
       volumeL: 12,
       heliumFraction: 0,
       tankMaterial: 'steel',
+      tankSurfaceAreaM2: steelTestAreaM2,
       coolingMedium: 'air',
     );
     final heliumAluminumWater = estimateTransferTemperature(
@@ -298,6 +303,7 @@ void main() {
       volumeL: 12,
       heliumFraction: 0.35,
       tankMaterial: 'aluminum',
+      tankSurfaceAreaM2: aluminumTestAreaM2,
       coolingMedium: 'water',
     );
 
@@ -314,6 +320,7 @@ void main() {
       volumeL: 12,
       heliumFraction: 1,
       tankMaterial: 'steel',
+      tankSurfaceAreaM2: steelTestAreaM2,
       coolingMedium: 'air',
       ambientTemperatureC: 24,
     );
@@ -324,6 +331,7 @@ void main() {
       volumeL: 12,
       heliumFraction: 1,
       tankMaterial: 'steel',
+      tankSurfaceAreaM2: steelTestAreaM2,
       coolingMedium: 'air',
       ambientTemperatureC: 0,
     );
@@ -340,6 +348,7 @@ void main() {
       volumeL: 12,
       heliumFraction: 0.35,
       tankMaterial: 'steel',
+      tankSurfaceAreaM2: steelTestAreaM2,
       coolingMedium: 'air',
       ambientTemperatureC: 28,
       inletTemperatureC: 28,
@@ -348,6 +357,44 @@ void main() {
     expect(temperatureC, closeTo(37.8424, 0.01));
   });
 
+  test('heat loss scales with the supplied tank surface', () {
+    // Same fill, three areas. A larger surface loses more heat, so the
+    // final temperature falls.
+    double finalTemp(double area) => estimateTransferTemperature(
+      startTemperatureC: 20,
+      addedPressureBar: 70,
+      fillTimeMinutes: 10,
+      volumeL: 12,
+      heliumFraction: 0,
+      tankMaterial: 'steel',
+      coolingMedium: 'air',
+      tankSurfaceAreaM2: area,
+    );
+    final small = finalTemp(0.10);
+    final base = finalTemp(0.45);
+    final large = finalTemp(0.90);
+    expect(small, greaterThan(base));
+    expect(base, greaterThan(large));
+  });
+
+  test('a missing surface is refused instead of modelled as zero', () {
+    for (final bad in <double>[0, -0.1, double.nan, double.infinity]) {
+      expect(
+        () => estimateTransferTemperature(
+          startTemperatureC: 20,
+          addedPressureBar: 70,
+          fillTimeMinutes: 10,
+          volumeL: 12,
+          heliumFraction: 0,
+          tankMaterial: 'steel',
+          coolingMedium: 'air',
+          tankSurfaceAreaM2: bad,
+        ),
+        throwsA(isA<DomainError>()),
+        reason: 'area $bad',
+      );
+    }
+  });
   test('inlet gas temperature changes the transfer-end temperature', () {
     double run(double inletTemperatureC) => estimateTransferTemperature(
       startTemperatureC: 20,
@@ -357,6 +404,7 @@ void main() {
       volumeL: 12,
       heliumFraction: 0,
       tankMaterial: 'steel',
+      tankSurfaceAreaM2: steelTestAreaM2,
       coolingMedium: 'air',
       ambientTemperatureC: 20,
       inletTemperatureC: inletTemperatureC,
@@ -377,6 +425,7 @@ void main() {
       volumeL: 12,
       heliumFraction: 0,
       tankMaterial: 'steel',
+      tankSurfaceAreaM2: steelTestAreaM2,
       coolingMedium: 'air',
       ambientTemperatureC: 20,
       inletTemperatureC: 20,
@@ -411,6 +460,7 @@ void main() {
         physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
         thermal: ThermalInput(
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'air',
           ambientTemperatureC: 20,
           inletTemperatureC: 20,
@@ -454,6 +504,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         inletTemperatureC: 20,
@@ -498,6 +549,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         waitMode: 'minutes',
@@ -555,6 +607,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         waitMode: 'minutes',
@@ -604,6 +657,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         waitMode: 'minutes',
@@ -640,6 +694,7 @@ void main() {
       physics: const PhysicsInput(model: 'vdw', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         waitMode: 'minutes',
@@ -715,6 +770,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         waitMode: 'minutes',
@@ -758,6 +814,7 @@ void main() {
         physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
         thermal: const ThermalInput(
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'air',
           ambientTemperatureC: 20,
           inletTemperatureC: 20,
@@ -807,6 +864,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         waitMode: 'minutes',
@@ -838,6 +896,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         waitMode: 'minutes',
@@ -879,6 +938,7 @@ void main() {
         physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
         thermal: const ThermalInput(
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'air',
           ambientTemperatureC: 20,
           waitMode: 'minutes',
@@ -936,6 +996,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         inletTemperatureC: 40,
@@ -986,6 +1047,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 60),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         waitMode: 'minutes',
@@ -1063,6 +1125,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         inletTemperatureC: 20,
@@ -1128,6 +1191,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         inletTemperatureC: 20,
@@ -1225,6 +1289,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         inletTemperatureC: 20,
@@ -1269,6 +1334,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         inletTemperatureC: 40,
@@ -1311,6 +1377,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
       ),
@@ -1337,6 +1404,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         inletTemperatureC: 20,
@@ -1389,6 +1457,7 @@ void main() {
         physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
         thermal: const ThermalInput(
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'air',
           ambientTemperatureC: 20,
           inletTemperatureC: 20,
@@ -1447,6 +1516,7 @@ void main() {
         physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
         thermal: const ThermalInput(
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'air',
           ambientTemperatureC: 20,
         ),
@@ -1493,6 +1563,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 30),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
       ),
@@ -1518,6 +1589,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 30),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
       ),
@@ -1545,6 +1617,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 30),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
       ),
@@ -1573,6 +1646,7 @@ void main() {
           physics: const PhysicsInput(model: 'ideal', temperatureC: 30),
           thermal: const ThermalInput(
             tankMaterial: 'steel',
+            tankSurfaceAreaM2: steelTestAreaM2,
             coolingMedium: 'air',
             ambientTemperatureC: 20,
           ),
@@ -1605,6 +1679,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         waitMinutes: 0,
@@ -1641,6 +1716,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         targetTemperatureC: 20,
@@ -1696,6 +1772,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         targetTemperatureC: 20,
@@ -1764,6 +1841,7 @@ void main() {
         physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
         thermal: ThermalInput(
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: coolingMedium,
           ambientTemperatureC: 20,
           targetMediumTemperatureC: 20,
@@ -1802,6 +1880,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         targetMediumTemperatureC: 20,
@@ -1871,6 +1950,7 @@ void main() {
           volumeL: 12,
           heliumFraction: 0,
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: coolingMedium,
           waterSubmersionPercent: waterSubmersionPercent,
         );
@@ -1887,6 +1967,7 @@ void main() {
           volumeL: 12,
           heliumFraction: 0,
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'water',
           waterSubmersionPercent: waterSubmersionPercent,
         );
@@ -1897,6 +1978,7 @@ void main() {
       volumeL: 12,
       heliumFraction: 0,
       tankMaterial: 'steel',
+      tankSurfaceAreaM2: steelTestAreaM2,
       coolingMedium: 'air',
     );
     var previous = air;
@@ -1931,6 +2013,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'water',
         waterSubmersionPercent: waterSubmersionPercent,
         ambientTemperatureC: 20,
@@ -1969,6 +2052,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         inletTemperatureC: 20,
@@ -2013,6 +2097,7 @@ void main() {
         physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
         thermal: const ThermalInput(
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'air',
           ambientTemperatureC: 20,
           inletTemperatureC: 20,
@@ -2060,6 +2145,7 @@ void main() {
         physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
         thermal: const ThermalInput(
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'air',
           ambientTemperatureC: 20,
           inletTemperatureC: 20,
@@ -2105,6 +2191,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 40),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         inletTemperatureC: 20,
@@ -2190,6 +2277,7 @@ void main() {
       physics: const PhysicsInput(model: 'ideal', temperatureC: 20),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 20,
         inletTemperatureC: 20,
@@ -2240,6 +2328,7 @@ void main() {
       physics: const PhysicsInput(model: 'vdw', temperatureC: -5),
       thermal: const ThermalInput(
         tankMaterial: 'steel',
+        tankSurfaceAreaM2: steelTestAreaM2,
         coolingMedium: 'air',
         ambientTemperatureC: 30,
         inletTemperatureC: 30,
@@ -2269,6 +2358,7 @@ void main() {
         physics: const PhysicsInput(model: 'vdw', temperatureC: -5),
         thermal: const ThermalInput(
           tankMaterial: 'steel',
+          tankSurfaceAreaM2: steelTestAreaM2,
           coolingMedium: 'air',
           ambientTemperatureC: 0,
           inletTemperatureC: 0,

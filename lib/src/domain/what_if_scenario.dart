@@ -100,6 +100,7 @@ class WhatIfInput {
     required this.physicsTemperatureC,
     required this.tankMaterial,
     required this.tankMassKg,
+    this.tankSurfaceAreaM2,
     required this.coolingMedium,
     required this.waterSubmersionPercent,
     required this.ambientTemperatureC,
@@ -118,6 +119,7 @@ class WhatIfInput {
   final double? physicsTemperatureC;
   final String? tankMaterial;
   final double? tankMassKg;
+  final double? tankSurfaceAreaM2;
   final String? coolingMedium;
   final double? waterSubmersionPercent;
   final double? ambientTemperatureC;
@@ -271,6 +273,9 @@ WhatIfInput buildWhatIfInput(
     physicsTemperatureC: start.ambientTemperatureC,
     tankMaterial: preset?.material,
     tankMassKg: preset?.massKg,
+    tankSurfaceAreaM2: preset != null && preset.isComplete
+        ? preset.surfaceAreaM2
+        : null,
     coolingMedium: start.coolingMedium,
     waterSubmersionPercent: start.waterSubmersionPercent,
     ambientTemperatureC: start.ambientTemperatureC,
