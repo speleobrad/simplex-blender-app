@@ -4,6 +4,7 @@ import 'package:simplex_blender/src/controllers/blend_controller.dart';
 import 'package:simplex_blender/src/data/bank_storage.dart';
 import 'package:simplex_blender/src/domain/bank.dart';
 import 'package:simplex_blender/src/domain/cost.dart';
+import 'package:simplex_blender/src/domain/cylinder_geometry.dart';
 import 'package:simplex_blender/src/domain/interim_check.dart';
 import 'package:simplex_blender/src/domain/pressure_limits.dart';
 import 'package:simplex_blender/src/domain/pure_prices.dart';
@@ -96,6 +97,39 @@ void main() {
     expect(controller.lastResult, isNotNull);
     expect(controller.lastResult!['feasible'], isTrue);
     expect(controller.lastInput, isNotNull);
+  });
+
+  test('an incomplete cylinder preset is refused with a message', () {
+    const incomplete = CylinderPreset(
+      name: 'Catalina S80',
+      volumeL: 11.1,
+      material: 'aluminum',
+      massKg: 14.3,
+      workingPressureBar: 207,
+      hotOverfillPercent: 2,
+    );
+    final controller = _controller(
+      bankList: List<Bank>.of(DEFAULT_BANKS),
+      settings: DEFAULT_SETTINGS,
+      inputs: _defaultInputs().copyWith(cylinderPreset: incomplete),
+    );
+    final result = controller.lastResult!;
+    expect(result['feasible'], isFalse);
+    expect(
+      result.toString(),
+      contains(incompleteCylinderMessage(incomplete.name)),
+    );
+  });
+
+  test('a complete preset still calculates', () {
+    final controller = _controller(
+      bankList: List<Bank>.of(DEFAULT_BANKS),
+      settings: DEFAULT_SETTINGS,
+    );
+    expect(
+      controller.lastResult!.toString(),
+      isNot(contains('needs a diameter and length')),
+    );
   });
 
   test(

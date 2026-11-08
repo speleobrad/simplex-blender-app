@@ -8,6 +8,7 @@ import 'package:simplex_blender/src/domain/bank_pricing.dart';
 import 'package:simplex_blender/src/domain/blend_defaults.dart';
 import 'package:simplex_blender/src/domain/calculator_input.dart';
 import 'package:simplex_blender/src/domain/cost.dart';
+import 'package:simplex_blender/src/domain/cylinder_geometry.dart';
 import 'package:simplex_blender/src/domain/input_validation.dart';
 import 'package:simplex_blender/src/domain/interim_check.dart';
 import 'package:simplex_blender/src/domain/interim_measurements.dart';
@@ -408,12 +409,16 @@ class BlendController extends ChangeNotifier {
     BlendInputs input,
     List<InterimMeasurement?> measurements,
   ) {
-    return validateCalculatorInputs(
-      _calculatorCylinder(input, input.targetPressureBar),
-      CalculatorPhysics(temperatureC: input.ambientTemperatureC),
-      _calculatorThermal(input, measurements),
-      pressureLimitMode: _settings.pressureLimitMode,
-    );
+    final preset = input.cylinderPreset;
+    return <String>[
+      if (!preset.isComplete) incompleteCylinderMessage(preset.name),
+      ...validateCalculatorInputs(
+        _calculatorCylinder(input, input.targetPressureBar),
+        CalculatorPhysics(temperatureC: input.ambientTemperatureC),
+        _calculatorThermal(input, measurements),
+        pressureLimitMode: _settings.pressureLimitMode,
+      ),
+    ];
   }
 
   CalculatorCylinder _calculatorCylinder(

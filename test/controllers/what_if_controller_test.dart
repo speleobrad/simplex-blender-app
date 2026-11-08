@@ -3,6 +3,7 @@ import 'package:simplex_blender/src/analytics/analytics.dart';
 import 'package:simplex_blender/src/controllers/what_if_controller.dart';
 import 'package:simplex_blender/src/data/bank_storage.dart';
 import 'package:simplex_blender/src/domain/bank.dart';
+import 'package:simplex_blender/src/domain/cylinder_geometry.dart';
 import 'package:simplex_blender/src/domain/compare_recipe.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/domain/what_if_scenario.dart';
@@ -76,6 +77,35 @@ void main() {
         contains('Select an available cylinder preset.'),
       );
     });
+
+    test(
+      'running with an incomplete preset reports a cylinderPresetName error',
+      () {
+        const incomplete = CylinderPreset(
+          name: 'Catalina S80',
+          volumeL: 11.1,
+          material: 'aluminum',
+          massKg: 14.3,
+          workingPressureBar: 207,
+          hotOverfillPercent: 2,
+        );
+        final controller = controllerWith(
+          _RecordingAnalytics(),
+          settings: copySettings(DEFAULT_SETTINGS)
+              .copyWith(cylinderPresets: const <CylinderPreset>[incomplete]),
+        );
+        final error = controller.runWhatIf();
+        expect(error, isNotNull);
+        expect(
+          controller.fieldErrors.any(
+            (e) =>
+                e.field == 'cylinderPresetName' &&
+                e.message == incompleteCylinderMessage('Catalina S80'),
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('b. a failed rerun keeps the projection stale after shared inputs '
         'changed', () {
