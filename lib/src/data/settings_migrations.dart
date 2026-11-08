@@ -59,6 +59,168 @@ Map<String, Object?> addDefaultCylinderPresets(Map<String, Object?> settings) {
   return <String, Object?>{...settings, 'cylinderPresets': cylinderPresets};
 }
 
+bool _hasDimensionKey(Map<String, Object?> preset) =>
+    preset.containsKey('diameterMm') || preset.containsKey('lengthMm');
+
+/// The built-in `Luxfer S80` entry as it was stored before its volume was
+/// corrected from 10.6 L to 11.1 L (Luxfer LAL80 sheet).
+bool _isUncorrectedLuxferS80(Map<String, Object?> preset) =>
+    preset['name'] == 'Luxfer S80' &&
+    preset['volumeL'] == 10.6 &&
+    preset['material'] == 'aluminum' &&
+    preset['massKg'] == 13.7 &&
+    preset['workingPressureBar'] == 217 &&
+    preset['hotOverfillPercent'] == DEFAULT_HOT_OVERFILL_PERCENT &&
+    !_hasDimensionKey(preset);
+
+/// Updates a stored, untouched built-in `Luxfer S80` from 10.6 L to 11.1 L.
+/// A preset edited in any field, or under another name, is left alone.
+/// Must run after [addDefaultCylinderPresets] and before
+/// [addNearestCylinderDimensions].
+Map<String, Object?> correctLuxferS80Volume(Map<String, Object?> settings) {
+  final cylinders = settings['cylinderPresets'];
+  if (cylinders is! List<Object?>) return settings;
+  return <String, Object?>{
+    ...settings,
+    'cylinderPresets': <Object?>[
+      for (final preset in cylinders)
+        if (asJsonObject(preset) case final map?
+            when _isUncorrectedLuxferS80(map))
+          <String, Object?>{...map, 'volumeL': 11.1}
+        else
+          preset,
+    ],
+  };
+}
+
+/// Names of presets touched by [addNearestCylinderDimensions].
+class CylinderDimensionMigration {
+  const CylinderDimensionMigration({
+    required this.matched,
+    required this.incomplete,
+  });
+
+  /// Presets that received dimensions from the nearest standard cylinder.
+  final List<String> matched;
+
+  /// Presets that stay without dimensions and need user entry.
+  final List<String> incomplete;
+}
+
+/// Closest built-in default for a legacy preset. Aluminium takes the nearest
+/// volume with no cutoff. Every other material needs an exactly equal volume.
+/// Ties go to the same name, then the smaller volume, then the earlier default.
+CylinderPreset? _nearestStandard(
+  Object? name,
+  String material,
+  double volumeL,
+) {
+  final exactOnly = material != 'aluminum';
+  final candidates = <(double, int, double, int, CylinderPreset)>[];
+  final defaults = DEFAULT_SETTINGS.cylinderPresets;
+  for (var i = 0; i < defaults.length; i++) {
+    final candidate = defaults[i];
+    if (candidate.material != material) continue;
+    final distance = (candidate.volumeL - volumeL).abs();
+    if (exactOnly && distance != 0) continue;
+    candidates.add((
+      distance,
+      candidate.name == name ? 0 : 1,
+      candidate.volumeL,
+      i,
+      candidate,
+    ));
+  }
+  if (candidates.isEmpty) return null;
+  candidates.sort((a, b) {
+    final byDistance = a.$1.compareTo(b.$1);
+    if (byDistance != 0) return byDistance;
+    final byName = a.$2.compareTo(b.$2);
+    if (byName != 0) return byName;
+    final byVolume = a.$3.compareTo(b.$3);
+    if (byVolume != 0) return byVolume;
+    return a.$4.compareTo(b.$4);
+  });
+  return candidates.first.$5;
+}
+
+/// Gives legacy presets (neither dimension key present) the dimensions of the
+/// nearest standard cylinder, and reports which presets changed and which
+/// remain without dimensions. A preset with either key present, including an
+/// explicit `null`, is never changed.
+({Map<String, Object?> settings, CylinderDimensionMigration report})
+applyNearestCylinderDimensions(Map<String, Object?> settings) {
+  final cylinders = settings['cylinderPresets'];
+  final matched = <String>[];
+  final incomplete = <String>[];
+  if (cylinders is! List<Object?>) {
+    return (
+      settings: settings,
+      report: const CylinderDimensionMigration(
+        matched: <String>[],
+        incomplete: <String>[],
+      ),
+    );
+  }
+  final migrated = <Object?>[];
+  for (final preset in cylinders) {
+    final map = asJsonObject(preset);
+    final volume = map?['volumeL'];
+    final material = map?['material'];
+    if (map == null ||
+        _hasDimensionKey(map) ||
+        volume is! num ||
+        !volume.isFinite ||
+        material is! String) {
+      migrated.add(preset);
+      continue;
+    }
+    final name = map['name'];
+    final standard = _nearestStandard(name, material, volume.toDouble());
+    if (standard == null) {
+      if (name is String) incomplete.add(name);
+      migrated.add(preset);
+      continue;
+    }
+    if (name is String) matched.add(name);
+    migrated.add(<String, Object?>{
+      ...map,
+      'diameterMm': standard.diameterMm,
+      'lengthMm': standard.lengthMm,
+    });
+  }
+  return (
+    settings: <String, Object?>{...settings, 'cylinderPresets': migrated},
+    report: CylinderDimensionMigration(
+      matched: matched,
+      incomplete: incomplete,
+    ),
+  );
+}
+
+Map<String, Object?> addNearestCylinderDimensions(
+  Map<String, Object?> settings,
+) => applyNearestCylinderDimensions(settings).settings;
+
+/// One-time notice text for a load that migrated dimensions.
+String cylinderMigrationNoticeMessage(CylinderDimensionMigration report) {
+  final count = report.matched.length;
+  final noun = count == 1 ? 'preset' : 'presets';
+  final buffer = StringBuffer(
+    'Diameter and length were set for $count saved cylinder $noun from the '
+    'nearest standard cylinder: ${report.matched.join(', ')}. Check them in '
+    'Settings > Cylinder presets.',
+  );
+  final open = report.incomplete.length;
+  if (open > 0) {
+    final verb = open == 1 ? 'preset still needs' : 'presets still need';
+    buffer.write(
+      ' $open $verb a diameter and length: ${report.incomplete.join(', ')}.',
+    );
+  }
+  return buffer.toString();
+}
+
 /// Port of JS `addDefaultBooster`. A non-object `booster` (including arrays)
 /// is replaced by an empty object before merging with the defaults.
 Map<String, Object?> addDefaultBooster(Map<String, Object?> settings) {
@@ -197,15 +359,25 @@ Map<String, Object?> addDefaultEquipmentPresets(Map<String, Object?> settings) {
   };
 }
 
-/// Applies every migration in the order JS `loadSettings` and `saveSettings`
-/// use. The result still needs [validateSettingsJson] before it is parsed.
-Map<String, Object?> normalizeSettingsJson(Map<String, Object?> saved) {
+/// Applies every migration and also reports the cylinder dimension changes.
+({Map<String, Object?> settings, CylinderDimensionMigration report})
+normalizeSettingsJsonWithReport(Map<String, Object?> saved) {
   final withBooster = addDefaultBooster(saved);
   final withUnits = addDefaultUnits(withBooster);
   final withPressurePolicy = addDefaultPressureLimitPolicy(withUnits);
   final withPhysics = addDefaultPhysics(withPressurePolicy);
   final withCylinders = addDefaultCylinderPresets(withPhysics);
-  final withEquipment = addDefaultEquipmentPresets(withCylinders);
+  final withLuxferVolume = correctLuxferS80Volume(withCylinders);
+  final withDimensions = applyNearestCylinderDimensions(withLuxferVolume);
+  final withEquipment = addDefaultEquipmentPresets(withDimensions.settings);
   final withTolerance = addDefaultInterimPressureTolerance(withEquipment);
-  return addDefaultCosts(withTolerance);
+  return (
+    settings: addDefaultCosts(withTolerance),
+    report: withDimensions.report,
+  );
 }
+
+/// Applies every migration in the order JS `loadSettings` and `saveSettings`
+/// use. The result still needs [validateSettingsJson] before it is parsed.
+Map<String, Object?> normalizeSettingsJson(Map<String, Object?> saved) =>
+    normalizeSettingsJsonWithReport(saved).settings;

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/data/key_value_storage.dart';
 import 'package:simplex_blender/src/data/settings_storage.dart';
+import 'package:simplex_blender/src/data/settings_migrations.dart';
 import 'package:simplex_blender/src/domain/cost.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
 import 'package:simplex_blender/src/domain/settings_json.dart';
@@ -893,5 +894,254 @@ void main() {
     saveSettings(settings, storage);
 
     _expectSameSettings(loadSettings(storage), settings);
+  });
+
+  group('cylinder dimension migration', () {
+    Map<String, Object?> preset(
+      String name,
+      double volumeL,
+      String material, {
+      Map<String, Object?> extra = const <String, Object?>{},
+    }) => <String, Object?>{
+      'name': name,
+      'volumeL': volumeL,
+      'material': material,
+      'massKg': 10,
+      'workingPressureBar': 200,
+      'hotOverfillPercent': 2,
+      ...extra,
+    };
+
+    Map<String, Object?> withCylinders(List<Map<String, Object?>> cylinders) =>
+        <String, Object?>{..._rawSettings(), 'cylinderPresets': cylinders};
+
+    List<Map<String, Object?>> migrated(List<Map<String, Object?>> input) {
+      final result = addNearestCylinderDimensions(withCylinders(input));
+      return (result['cylinderPresets']! as List<Object?>)
+          .map((p) => p! as Map<String, Object?>)
+          .toList();
+    }
+
+    test('aluminium customs take the closest-volume default', () {
+      final result = migrated(<Map<String, Object?>>[
+        preset('Custom 5.5', 5.5, 'aluminum'),
+        preset('Custom 20', 20, 'aluminum'),
+        preset('Custom 2', 2, 'aluminum'),
+      ]);
+      expect(result[0]['diameterMm'], 133); // Luxfer S40
+      expect(result[0]['lengthMm'], 625);
+      expect(result[1]['diameterMm'], 184); // Luxfer S80 (earlier default)
+      expect(result[1]['lengthMm'], 662);
+      expect(result[2]['diameterMm'], 111.3); // Catalina S13
+      expect(result[2]['lengthMm'], 325);
+    });
+
+    test('each built-in S80 keeps its own dimensions', () {
+      final result = migrated(<Map<String, Object?>>[
+        preset('Luxfer S80', 11.1, 'aluminum'),
+        preset('Catalina S80', 11.1, 'aluminum'),
+      ]);
+      expect(result[0]['diameterMm'], 184);
+      expect(result[0]['lengthMm'], 662);
+      expect(result[1]['diameterMm'], 184.2);
+      expect(result[1]['lengthMm'], 658);
+    });
+
+    test('steel migrates only at exactly 3 L; others stay without keys', () {
+      final result = migrated(<Map<String, Object?>>[
+        preset('Steel 3', 3, 'steel'),
+        preset('Steel 12', 12, 'steel'),
+        preset('Steel 3.1', 3.1, 'steel'),
+        preset('Fero 3', 3, 'carbon-wrapped-steel'),
+      ]);
+      expect(result[0]['diameterMm'], 100.1);
+      expect(result[0]['lengthMm'], 495.3);
+      for (final i in <int>[1, 2, 3]) {
+        expect(result[i].containsKey('diameterMm'), isFalse, reason: '$i');
+        expect(result[i].containsKey('lengthMm'), isFalse, reason: '$i');
+      }
+    });
+
+    test('presets with either key present, including null, are untouched', () {
+      final input = <Map<String, Object?>>[
+        preset(
+          'Has both',
+          5.7,
+          'aluminum',
+          extra: <String, Object?>{'diameterMm': 150, 'lengthMm': 600},
+        ),
+        preset(
+          'Null keys',
+          5.7,
+          'aluminum',
+          extra: <String, Object?>{'diameterMm': null, 'lengthMm': null},
+        ),
+        preset(
+          'One key',
+          5.7,
+          'aluminum',
+          extra: <String, Object?>{'diameterMm': 150},
+        ),
+      ];
+      final result = migrated(input);
+      expect(result, input);
+    });
+
+    test('non-numeric volume or non-string material is left alone', () {
+      final bad = <String, Object?>{
+        ...preset('X', 5, 'aluminum'),
+        'volumeL': 'a',
+      };
+      final result = migrated(<Map<String, Object?>>[bad]);
+      expect(result.single.containsKey('diameterMm'), isFalse);
+    });
+
+    test('running the step twice equals running it once', () {
+      final input = withCylinders(<Map<String, Object?>>[
+        preset('Custom 5.5', 5.5, 'aluminum'),
+        preset('Steel 12', 12, 'steel'),
+      ]);
+      final once = addNearestCylinderDimensions(input);
+      expect(addNearestCylinderDimensions(once), once);
+    });
+
+    test('Luxfer S80 volume is corrected only for the untouched built-in', () {
+      Map<String, Object?> luxfer({
+        String name = 'Luxfer S80',
+        double volume = 10.6,
+        double mass = 13.7,
+      }) => <String, Object?>{
+        'name': name,
+        'volumeL': volume,
+        'material': 'aluminum',
+        'massKg': mass,
+        'workingPressureBar': 217,
+        'hotOverfillPercent': 2,
+      };
+      double volumeOf(Map<String, Object?> p) {
+        final result = correctLuxferS80Volume(
+          withCylinders(<Map<String, Object?>>[p]),
+        );
+        return ((result['cylinderPresets']! as List<Object?>).single!
+                as Map<String, Object?>)['volumeL']!
+            as double;
+      }
+
+      expect(volumeOf(luxfer()), 11.1);
+      expect(volumeOf(luxfer(mass: 14)), 10.6); // edited
+      expect(volumeOf(luxfer(name: 'My 10.6 alu')), 10.6); // other name
+      expect(volumeOf(luxfer(volume: 12)), 12); // edited volume
+      // Idempotent: the corrected preset no longer matches.
+      final once = correctLuxferS80Volume(
+        withCylinders(<Map<String, Object?>>[luxfer()]),
+      );
+      expect(correctLuxferS80Volume(once), once);
+    });
+
+    test('a preset that already has dimension keys is not corrected', () {
+      final withKeys = <String, Object?>{
+        'name': 'Luxfer S80',
+        'volumeL': 10.6,
+        'material': 'aluminum',
+        'massKg': 13.7,
+        'workingPressureBar': 217,
+        'hotOverfillPercent': 2,
+        'diameterMm': 184,
+        'lengthMm': 662,
+      };
+      final result = correctLuxferS80Volume(
+        withCylinders(<Map<String, Object?>>[withKeys]),
+      );
+      expect(
+        ((result['cylinderPresets']! as List<Object?>).single!
+            as Map<String, Object?>)['volumeL'],
+        10.6,
+      );
+    });
+  });
+
+  group('cylinder migration notice', () {
+    Map<String, Object?> legacyPreset(String name, double v, String material) =>
+        <String, Object?>{
+          'name': name,
+          'volumeL': v,
+          'material': material,
+          'massKg': 10,
+          'workingPressureBar': 200,
+          'hotOverfillPercent': 2,
+        };
+
+    MemoryStorage storedWith(List<Map<String, Object?>> cylinders) =>
+        _storedRaw(<String, Object?>{
+          ..._rawSettings(),
+          'cylinderPresets': cylinders,
+        });
+
+    test('reports matched and incomplete names once something changed', () {
+      CylinderDimensionMigration? report;
+      loadSettings(
+        storedWith(<Map<String, Object?>>[
+          legacyPreset('Alu 5.5', 5.5, 'aluminum'),
+          legacyPreset('Steel 12', 12, 'steel'),
+        ]),
+        onCylinderDimensionsMigrated: (r) => report = r,
+      );
+      expect(report, isNotNull);
+      expect(report!.matched, <String>['Alu 5.5']);
+      expect(report!.incomplete, <String>['Steel 12']);
+    });
+
+    test('is not called when only unmatched presets exist', () {
+      var called = false;
+      loadSettings(
+        storedWith(<Map<String, Object?>>[
+          legacyPreset('Steel 12', 12, 'steel'),
+        ]),
+        onCylinderDimensionsMigrated: (_) => called = true,
+      );
+      expect(called, isFalse);
+    });
+
+    test(
+      'is not called for defaults, empty storage, or already-migrated data',
+      () {
+        var calls = 0;
+        void count(CylinderDimensionMigration _) => calls++;
+        loadSettings(MemoryStorage(), onCylinderDimensionsMigrated: count);
+        loadSettings(
+          _storedRaw(_rawSettings()),
+          onCylinderDimensionsMigrated: count,
+        );
+        expect(calls, 0);
+      },
+    );
+
+    test('is not called when load falls back to defaults', () {
+      var called = false;
+      loadSettings(
+        _storedRaw(<String, Object?>{
+          ..._rawSettings(),
+          'units': 'metric',
+          'cylinderPresets': <Object?>[],
+        }),
+        onFallback: (_) {},
+        onCylinderDimensionsMigrated: (_) => called = true,
+      );
+      expect(called, isFalse);
+    });
+
+    test('message lists both groups', () {
+      expect(
+        cylinderMigrationNoticeMessage(
+          const CylinderDimensionMigration(
+            matched: <String>['A', 'B'],
+            incomplete: <String>['C'],
+          ),
+        ),
+        'Diameter and length were set for 2 saved cylinder presets from the '
+        'nearest standard cylinder: A, B. Check them in Settings > Cylinder '
+        'presets. 1 preset still needs a diameter and length: C.',
+      );
+    });
   });
 }

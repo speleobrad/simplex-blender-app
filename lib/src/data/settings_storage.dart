@@ -13,9 +13,13 @@ const String SETTINGS_STORAGE_KEY = 'simplex-gas-remixer-settings';
 /// Returns defaults when nothing is stored. Unreadable or invalid saved data
 /// also returns defaults and reports the reason through [onFallback], which
 /// the app uses to set its storage warning.
+/// [onCylinderDimensionsMigrated] is called only when a saved preset received
+/// dimensions from the nearest standard cylinder.
 Settings loadSettings(
   KeyValueStorage storage, {
   void Function(Object error)? onFallback,
+  void Function(CylinderDimensionMigration report)?
+  onCylinderDimensionsMigrated,
 }) {
   final String? raw;
   try {
@@ -35,11 +39,15 @@ Settings loadSettings(
     return copySettings(DEFAULT_SETTINGS);
   }
   final saved = asJsonObject(decoded) ?? <String, Object?>{};
-  final normalized = normalizeSettingsJson(saved);
+  final migration = normalizeSettingsJsonWithReport(saved);
+  final normalized = migration.settings;
   final errors = validateSettingsJson(normalized);
   if (errors.isNotEmpty) {
     onFallback?.call(RangeError(errors.join(' ')));
     return copySettings(DEFAULT_SETTINGS);
+  }
+  if (migration.report.matched.isNotEmpty) {
+    onCylinderDimensionsMigrated?.call(migration.report);
   }
   return copySettings(settingsFromJson(normalized));
 }
