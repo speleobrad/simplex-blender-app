@@ -1117,17 +1117,55 @@ void main() {
     );
 
     test('is not called when load falls back to defaults', () {
-      var called = false;
-      loadSettings(
+      var fallbacks = 0;
+      var migrations = 0;
+      final settings = loadSettings(
         _storedRaw(<String, Object?>{
           ..._rawSettings(),
-          'units': 'metric',
-          'cylinderPresets': <Object?>[],
+          'cylinderPresets': <Object?>[
+            <String, Object?>{
+              'name': 'Alu 5.5',
+              'volumeL': 5.5,
+              'material': 'aluminum',
+              'massKg': 10,
+              'workingPressureBar': 200,
+              'hotOverfillPercent': 2,
+            },
+            <String, Object?>{
+              'name': 'Broken',
+              'volumeL': 5,
+              'material': 'aluminum',
+              'massKg': -1,
+              'workingPressureBar': 200,
+              'hotOverfillPercent': 2,
+            },
+          ],
         }),
-        onFallback: (_) {},
-        onCylinderDimensionsMigrated: (_) => called = true,
+        onFallback: (_) => fallbacks++,
+        onCylinderDimensionsMigrated: (_) => migrations++,
       );
-      expect(called, isFalse);
+      expect(fallbacks, 1);
+      expect(migrations, 0);
+      _expectSameSettings(settings, copySettings(DEFAULT_SETTINGS));
+    });
+
+    test('a stored untouched Luxfer S80 loads as 11.1 L with 184 x 662 mm', () {
+      final loaded = loadSettings(
+        storedWith(<Map<String, Object?>>[
+          <String, Object?>{
+            'name': 'Luxfer S80',
+            'volumeL': 10.6,
+            'material': 'aluminum',
+            'massKg': 13.7,
+            'workingPressureBar': 217,
+            'hotOverfillPercent': 2,
+          },
+        ]),
+      );
+      final cylinder = loaded.cylinderPresets.single;
+      expect(cylinder.volumeL, 11.1);
+      expect(cylinder.diameterMm, 184);
+      expect(cylinder.lengthMm, 662);
     });
 
     test('message lists both groups', () {
@@ -1141,6 +1179,20 @@ void main() {
         'Diameter and length were set for 2 saved cylinder presets from the '
         'nearest standard cylinder: A, B. Check them in Settings > Cylinder '
         'presets. 1 preset still needs a diameter and length: C.',
+      );
+    });
+
+    test('message for one matched preset and none incomplete', () {
+      expect(
+        cylinderMigrationNoticeMessage(
+          const CylinderDimensionMigration(
+            matched: <String>['A'],
+            incomplete: <String>[],
+          ),
+        ),
+        'Diameter and length were set for 1 saved cylinder preset from the '
+        'nearest standard cylinder: A. Check them in Settings > Cylinder '
+        'presets.',
       );
     });
   });
