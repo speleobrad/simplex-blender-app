@@ -357,11 +357,13 @@ void main() {
     expect(temperatureC, closeTo(37.8424, 0.01));
   });
 
-  test('heat loss scales with the supplied tank surface', () {
-    // Same fill, three areas. A larger surface loses more heat, so the
-    // final temperature falls.
+  test('a larger tank surface leaves the gas cooler', () {
+    // Same fill, four areas. A larger surface loses more heat, so the final
+    // temperature falls. With ambient == inlet == start, the excess over
+    // ambient must also fall strictly as the area grows.
+    const ambientC = 20.0;
     double finalTemp(double area) => estimateTransferTemperature(
-      startTemperatureC: 20,
+      startTemperatureC: ambientC,
       addedPressureBar: 70,
       fillTimeMinutes: 10,
       volumeL: 12,
@@ -369,12 +371,17 @@ void main() {
       tankMaterial: 'steel',
       coolingMedium: 'air',
       tankSurfaceAreaM2: area,
+      ambientTemperatureC: ambientC,
+      inletTemperatureC: ambientC,
     );
-    final small = finalTemp(0.10);
-    final base = finalTemp(0.45);
-    final large = finalTemp(0.90);
-    expect(small, greaterThan(base));
-    expect(base, greaterThan(large));
+    final areas = <double>[0.10, 0.20, 0.45, 0.90];
+    final finals = <double>[for (final area in areas) finalTemp(area)];
+    final excess = <double>[for (final t in finals) t - ambientC];
+    expect(excess.first, greaterThan(0));
+    for (var i = 0; i < areas.length - 1; i++) {
+      expect(finals[i], greaterThan(finals[i + 1]));
+      expect(excess[i], greaterThan(excess[i + 1]));
+    }
   });
 
   test('a missing surface is refused instead of modelled as zero', () {

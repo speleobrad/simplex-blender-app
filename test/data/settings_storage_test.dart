@@ -947,6 +947,30 @@ void main() {
       expect(result[1]['lengthMm'], 658);
     });
 
+    test('nearest-volume ties resolve by name, then smaller volume, then earlier default', () {
+      // 3.8 L is nominally midway between Catalina S13 (1.9 L) and Luxfer S40
+      // (5.7 L); the smaller default volume is expected to win.
+      final midway = migrated(<Map<String, Object?>>[
+        preset('Custom 3.8', 3.8, 'aluminum'),
+      ]);
+      expect(midway[0]['diameterMm'], 111.3); // Catalina S13
+      expect(midway[0]['lengthMm'], 325);
+
+      // Two defaults hold 11.1 L. Without a matching name the earlier default
+      // (Luxfer S80) wins; a preset named Catalina S80 takes its own entry.
+      final unnamed = migrated(<Map<String, Object?>>[
+        preset('Custom 11', 11.1, 'aluminum'),
+      ]);
+      expect(unnamed[0]['diameterMm'], 184); // Luxfer S80
+      expect(unnamed[0]['lengthMm'], 662);
+
+      final named = migrated(<Map<String, Object?>>[
+        preset('Catalina S80', 11.1, 'aluminum'),
+      ]);
+      expect(named[0]['diameterMm'], 184.2); // Catalina S80
+      expect(named[0]['lengthMm'], 658);
+    });
+
     test('steel migrates only at exactly 3 L; others stay without keys', () {
       final result = migrated(<Map<String, Object?>>[
         preset('Steel 3', 3, 'steel'),
