@@ -273,6 +273,11 @@ class _SimplexBlenderAppState extends State<SimplexBlenderApp> {
             child: Text(_themeStatus, style: const TextStyle(fontSize: 12)),
           ),
         if (warnings.isNotEmpty) _StorageWarningBox(messages: warnings),
+        if (_app.cylinderMigrationNotice case final notice?)
+          _CylinderMigrationNotice(
+            message: notice,
+            onDismiss: _app.dismissCylinderMigrationNotice,
+          ),
         Expanded(
           child: Stack(
             children: <Widget>[
@@ -337,6 +342,53 @@ class _StorageWarningBox extends StatelessWidget {
         child: Text(
           messages.join(' '),
           style: TextStyle(color: scheme.onTertiaryContainer, fontSize: 12),
+        ),
+      ),
+    );
+  }
+}
+
+/// One-time informational notice that saved cylinder presets were given
+/// dimensions from the nearest standard cylinder.
+class _CylinderMigrationNotice extends StatelessWidget {
+  const _CylinderMigrationNotice({
+    required this.message,
+    required this.onDismiss,
+  });
+
+  final String message;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: scheme.secondaryContainer,
+          border: Border.all(color: scheme.secondary),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: scheme.onSecondaryContainer,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            TextButton(
+              key: const ValueKey<String>('cylinder-migration-dismiss'),
+              onPressed: onDismiss,
+              child: const Text('Dismiss'),
+            ),
+          ],
         ),
       ),
     );

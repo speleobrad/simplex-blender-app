@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/analytics/analytics.dart';
 import 'package:simplex_blender/src/controllers/app_controller.dart';
@@ -6,6 +8,7 @@ import 'package:simplex_blender/src/data/key_value_storage.dart';
 import 'package:simplex_blender/src/data/settings_storage.dart';
 import 'package:simplex_blender/src/domain/bank.dart';
 import 'package:simplex_blender/src/domain/settings.dart';
+import 'package:simplex_blender/src/domain/settings_json.dart';
 
 import '../support/memory_storage.dart';
 
@@ -36,6 +39,37 @@ class _FailingWriteStorage implements KeyValueStorage {
 
   @override
   void clear() {}
+}
+
+/// Stored settings whose two cylinder presets predate the dimension keys.
+String _legacyCylinderSettingsJson() => jsonEncode(<String, Object?>{
+  ...settingsToJson(DEFAULT_SETTINGS),
+  'cylinderPresets': <Object?>[
+    <String, Object?>{
+      'name': 'Alu 5.5',
+      'volumeL': 5.5,
+      'material': 'aluminum',
+      'massKg': 7,
+      'workingPressureBar': 207,
+      'hotOverfillPercent': 2,
+    },
+    <String, Object?>{
+      'name': 'Steel 12',
+      'volumeL': 12,
+      'material': 'steel',
+      'massKg': 14,
+      'workingPressureBar': 232,
+      'hotOverfillPercent': 2,
+    },
+  ],
+});
+
+/// Storage seeded with [initial] whose writes always fail.
+class _SeededFailingWrites extends MemoryStorage {
+  _SeededFailingWrites(super.initial);
+
+  @override
+  void setItem(String key, String value) => throw StateError('quota exceeded');
 }
 
 Bank _bankById(List<Bank> banks, String id) =>
@@ -113,6 +147,62 @@ void main() {
       );
     },
   );
+
+  test('legacy cylinders are migrated, written back, and noticed once', () {
+    final storage = MemoryStorage(<String, String>{
+      SETTINGS_STORAGE_KEY: _legacyCylinderSettingsJson(),
+    });
+    final first = AppController(
+      storage: storage,
+      analytics: _RecordingAnalytics(),
+    );
+    expect(first.cylinderMigrationNotice, contains('Alu 5.5'));
+    expect(first.cylinderMigrationNotice, contains('Steel 12'));
+    final migrated = first.settings.cylinderPresets;
+    expect(migrated[0].diameterMm, 133); // Luxfer S40 geometry
+    expect(migrated[1].isComplete, isFalse);
+
+    first.dismissCylinderMigrationNotice();
+    expect(first.cylinderMigrationNotice, isNull);
+
+    // The write-back persisted the keys: a second start migrates nothing.
+    final second = AppController(
+      storage: storage,
+      analytics: _RecordingAnalytics(),
+    );
+    expect(second.cylinderMigrationNotice, isNull);
+    expect(second.settings.cylinderPresets[0].diameterMm, 133);
+    final stored = jsonDecode(
+      storage.values[SETTINGS_STORAGE_KEY]!,
+    ) as Map<String, Object?>;
+    final storedPresets = stored['cylinderPresets']! as List<Object?>;
+    final steel = storedPresets[1]! as Map<String, Object?>;
+    expect(steel.containsKey('diameterMm'), isTrue);
+    expect(steel['diameterMm'], isNull);
+  });
+
+  test('a failed write-back keeps the migrated settings and the notice', () {
+    final controller = AppController(
+      storage: _SeededFailingWrites(<String, String>{
+        SETTINGS_STORAGE_KEY: _legacyCylinderSettingsJson(),
+      }),
+      analytics: _RecordingAnalytics(),
+    );
+    expect(controller.cylinderMigrationNotice, isNotNull);
+    expect(controller.settings.cylinderPresets.first.diameterMm, isNotNull);
+  });
+
+  test('fresh install has no notice and complete presets', () {
+    final controller = AppController(
+      storage: MemoryStorage(),
+      analytics: _RecordingAnalytics(),
+    );
+    expect(controller.cylinderMigrationNotice, isNull);
+    expect(
+      controller.settings.cylinderPresets.every((p) => p.isComplete),
+      isTrue,
+    );
+  });
 
   test('corrupt saved inventory falls back to the default banks and warns', () {
     final storage = MemoryStorage(<String, String>{STORAGE_KEY: '{not json'});

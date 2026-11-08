@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simplex_blender/src/analytics/analytics.dart';
@@ -5,8 +7,11 @@ import 'package:simplex_blender/src/controllers/app_controller.dart';
 import 'package:simplex_blender/src/controllers/blend_controller.dart';
 import 'package:simplex_blender/src/controllers/what_if_controller.dart';
 import 'package:simplex_blender/src/data/key_value_storage.dart';
+import 'package:simplex_blender/src/data/settings_storage.dart';
 import 'package:simplex_blender/src/domain/blend_defaults.dart';
 import 'package:simplex_blender/src/domain/interim_check.dart';
+import 'package:simplex_blender/src/domain/settings.dart';
+import 'package:simplex_blender/src/domain/settings_json.dart';
 import 'package:simplex_blender/src/domain/thermodynamics.dart';
 import 'package:simplex_blender/src/ui/settings/settings_screen.dart';
 import 'package:simplex_blender/src/ui/shell/app_shell.dart';
@@ -17,6 +22,29 @@ class _FailingWrites extends MemoryStorage {
   @override
   void setItem(String key, String value) => throw StateError('quota');
 }
+
+/// Stored settings whose two cylinder presets predate the dimension keys.
+String _legacyCylinderSettingsJson() => jsonEncode(<String, Object?>{
+  ...settingsToJson(DEFAULT_SETTINGS),
+  'cylinderPresets': <Object?>[
+    <String, Object?>{
+      'name': 'Alu 5.5',
+      'volumeL': 5.5,
+      'material': 'aluminum',
+      'massKg': 7,
+      'workingPressureBar': 207,
+      'hotOverfillPercent': 2,
+    },
+    <String, Object?>{
+      'name': 'Steel 12',
+      'volumeL': 12,
+      'material': 'steel',
+      'massKg': 14,
+      'workingPressureBar': 232,
+      'hotOverfillPercent': 2,
+    },
+  ],
+});
 
 class _UnreadableStorage extends MemoryStorage {
   @override
@@ -203,4 +231,21 @@ void main() {
       expect(wired.blend.interimMeasurementSignature, isNull);
     },
   );
+
+  testWidgets('migration notice is shown and can be dismissed', (tester) async {
+    final wired = _wire(
+      MemoryStorage(<String, String>{
+        SETTINGS_STORAGE_KEY: _legacyCylinderSettingsJson(),
+      }),
+    );
+    await _pumpShell(tester, wired);
+    await tester.tap(find.text('Skip'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.textContaining('nearest standard cylinder'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('cylinder-migration-dismiss')),
+    );
+    await tester.pump();
+    expect(find.textContaining('nearest standard cylinder'), findsNothing);
+  });
 }
