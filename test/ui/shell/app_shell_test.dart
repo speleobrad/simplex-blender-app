@@ -222,4 +222,26 @@ void main() {
     await tester.pump();
     expect(find.textContaining('nearest standard cylinder'), findsNothing);
   });
+
+  testWidgets('migration notice Dismiss uses the banner text colour', (
+    tester,
+  ) async {
+    final wired = _wire(
+      MemoryStorage(<String, String>{
+        SETTINGS_STORAGE_KEY: legacyCylinderSettingsJson(),
+      }),
+    );
+    await _pumpShell(tester, wired);
+    await tester.tap(find.text('Skip'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final button = tester.widget<TextButton>(
+      find.byKey(const ValueKey<String>('cylinder-migration-dismiss')),
+    );
+    final foreground = button.style!.foregroundColor!.resolve(<WidgetState>{});
+    final bannerText = Theme.of(tester.element(find.byType(NavigationRail)))
+        .colorScheme
+        .onSecondaryContainer;
+    expect(foreground, bannerText);
+  });
 }

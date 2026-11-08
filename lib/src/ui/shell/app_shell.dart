@@ -386,6 +386,9 @@ class _CylinderMigrationNotice extends StatelessWidget {
             TextButton(
               key: const ValueKey<String>('cylinder-migration-dismiss'),
               onPressed: onDismiss,
+              style: TextButton.styleFrom(
+                foregroundColor: scheme.onSecondaryContainer,
+              ),
               child: const Text('Dismiss'),
             ),
           ],
